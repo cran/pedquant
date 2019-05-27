@@ -1,3 +1,6 @@
+# 总收益/年化收益率/年化波动率/夏普率/最大回撤/交易手数/胜率/总利润/平均利润率/盈亏比/年化利润/最大回撤
+
+
 # d, w, m, q, ytd, y, 
 
 pq1_perf = function(dt, date_range='max', from=NULL, to=Sys.Date(), x='close|value', base_value=1) {
@@ -126,7 +129,7 @@ pq_portfolio = function(dt, w, init_equity=NULL, date_range='max', from=NULL, to
     equity3 = equity2[,.(date)][, cum_equity := rowSums(copy(equity2)[, date := NULL], na.rm = TRUE)]
     
     
-    if (is.null(init_equity)) init_equity = equity3[.N, cum_equity]
+    if (is.null(init_equity)) init_equity = equity3[cum_equity!=0][.N, cum_equity]
     cash = w[, .(value = sum(price * position)), keyby = c('date')
              ][][, .(date, cash_value=init_equity-cumsum(value))][]
     
