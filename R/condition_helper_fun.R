@@ -26,7 +26,7 @@ check_fromto = function(fromto, type="date", shift = 0) {
     type = check_arg(type, c("date", "time"), "date")
     
     # type: dates or times
-    if (class(fromto) == "character") {
+    if (inherits(fromto, "character")) {
         if (grepl("-|/",fromto)) {
             fromto = as.Date(fromto)
         } else {
@@ -81,7 +81,7 @@ get_fromto = function(date_range, from, to, min_date, default_date_range = 'max'
     if (from < min_date) from = min_date
     
     # set class
-    if (class(to) == "Date") {
+    if (inherits(to, "Date")) {
         from = as.Date(from)
     } else {
         from = as.POSIXct(from)
@@ -301,13 +301,15 @@ load_read_csv = function(url, encode="UTF-8", handle=new_handle()) {
     on.exit(unlink(temp))
     
     curl_download(url, destfile = temp, handle = handle)
-    dat = read.csv(temp, fileEncoding = encode)
+    dat = suppressWarnings(read.csv(temp, fileEncoding = encode))
     return(setDT(dat))
 }
 
 
-#' @importFrom webdriver run_phantomjs Session install_phantomjs
+# @importFrom webdriver run_phantomjs Session install_phantomjs
 load_web_source = function(url) {
+    Session = install_phantomjs = run_phantomjs = NULL
+    
     pjs <- try(run_phantomjs(), silent = TRUE)
     if (inherits(pjs, 'try-error')) {
         cat('Installing phantomjs ...\n')
@@ -317,6 +319,42 @@ load_web_source = function(url) {
     ses <- Session$new(port = pjs$port)
     ses$go(url)
     wb = ses$getSource()
+    return(wb)
+}
+
+# @importFrom RSelenium
+load_web_source2 = function(url, sleep_time = 0, close_remDr = TRUE) {
+    remoteDriver = NULL
+    # RSelenium ref
+    ## [Selenium](http://www.seleniumhq.org)
+    ## [Selenium with Python](https://selenium-python.readthedocs.io/installation.html)
+    ## [RSelenium: Basics](https://cran.r-project.org/web/packages/RSelenium/vignettes/RSelenium-basics.html)
+    ## [Installing ChromeDriver on macOS](https://www.kenst.com/2015/03/installing-chromedriver-on-mac-osx/)
+    
+    # docker # browser + webDriver + selenium
+    ## https://docs.docker.com/docker-for-mac/
+    ## https://hub.docker.com/u/selenium/
+    
+    # docker command
+    ## docker run hello-world
+    ## docker pull selenium/standalone-chrome
+    ## docker run -d -p 4445:4444 selenium/standalone-firefox
+    ## docker ps
+    ## sudo docker stop $(docker ps -q)
+    
+    
+    remDr <- remoteDriver(port = 4445L, browserName = "chrome")
+    remDr$open()
+    
+    # navigate
+    remDr$navigate(url)
+    # if (sleep_time>0) Sys.sleep(sleep_time)
+    
+    wb = remDr$getPageSource()[[1]]
+    # XML::htmlParse(wb)
+    # remDr$getTitle()
+    if (close_remDr) remDr$close()
+    
     return(wb)
 }
 
@@ -456,6 +494,13 @@ api_key = function(src){
 
 
 # select rows from a dataframe
+txt_to_rowid = function(txt) {
+    txt = gsub("[^[0-9:-]+", ",", txt)
+    txt = gsub('-', ':', txt)
+    txt = gsub('^[,:]+|[,:]+$', '', txt)
+    rowid = eval(parse( text = sprintf('c(%s)', txt) ))
+    return(rowid)
+}
 # dt, a dataframe to be selected
 # column, the targe column
 # input_string, the pattern to match the rows in target column
@@ -469,9 +514,9 @@ select_rows_df = function(dt, column=NULL, input_string=NULL, onerow=FALSE) {
         if (is.null(input_string)) {
             print(setDT(copy(dt))[,lapply(.SD, format)], topn = 50)
             if (is.null(column)) {
-                txt = "select rows via ('r'+rowid): "
+                txt = "select rows via 'rX': "
             } else {
-                txt = sprintf("select rows via ('r'+rowid) or (%s): ", column)
+                txt = sprintf("select rows via 'rX'(r1,3-5) or '%s': ", column)
             }
             if (onerow) txt = sub('rows', 'one row', txt)
             sel_id = readline(txt)
@@ -482,14 +527,11 @@ select_rows_df = function(dt, column=NULL, input_string=NULL, onerow=FALSE) {
         
         if (identical(sel_id, 'all')) {
             seleted_rows = dt
-        } else if (grepl('^r[1-9].*$', sel_id)) { # select rows via rowid 
+        } else if (all(grepl('^r[1-9]+[0-9,-:]*$', sel_id)) && length(sel_id)==1) { # select rows via rowid 
             while (any(grepl("^r", sel_id))) {
                 sel_id_string = gsub('r', '', sel_id)
-                sel_id_string = gsub("[^[0-9:-]+", ",", sel_id_string)
-                sel_id_string = gsub('-', ':', sel_id_string)
-                sel_id_string = gsub('^[,:]+|[,:]+$', '', sel_id_string)
-                sel_id = eval(parse( text = sprintf('c(%s)', sel_id_string) ))
-                sel_id = intersect(sel_id, dt[,.I])
+
+                sel_id = intersect(txt_to_rowid(sel_id_string), dt[,.I])
                 if (length(sel_id)==0) {
                     sel_id = 'r'
                 } else {
@@ -497,8 +539,13 @@ select_rows_df = function(dt, column=NULL, input_string=NULL, onerow=FALSE) {
                 }
             }
         } else { # select rows via pattern matching
-            seleted_rows=dt[grep(sel_id, dt[[column]], fixed = FALSE)]
-            if (nrow(seleted_rows) == 0) seleted_rows=dt[grep(sel_id, dt[[column]], fixed = TRUE)]
+            sr = unlist(sapply(
+                unlist(strsplit(sel_id, '\\s*,\\s*')), 
+                function(s) grep(sprintf('^%s',s), dt[[column]])
+            ))
+            if (length(sr) == 0) sr = txt_to_rowid(sel_id)
+            
+            seleted_rows = if (length(sr) == 0) dt[.0] else dt[sr]
             if (nrow(seleted_rows) == 0) input_string = NULL
         }
         
@@ -523,10 +570,10 @@ ceiling2 = function(x) {
 
 # is date/time class
 isdatetime = function(x) {
-    any(class(x) %in% c("Date","POSIXlt","POSIXct","POSIXt"))
+    inherits(x, c("Date","POSIXlt","POSIXct","POSIXt"))
 }
 
 
 
 # Internal data # http://r-pkgs.had.co.nz/data.html
-# usethis::use_data(financial_statements_163, prov_indu_163, symbol_future_sina, symbol_stock_163, code_commodity_exchange, code_stock_exchange, code_country, code_currency, internal = TRUE, overwrite = TRUE)
+# usethis::use_data(financial_statements_163, prov_indu_163, symbol_future_sina, symbol_stock_163, code_commodity_exchange, code_stock_exchange, code_country, code_currency, code_china_district, internal = TRUE, overwrite = TRUE)

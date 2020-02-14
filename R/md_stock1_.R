@@ -5,12 +5,13 @@
 #' 
 #' @param symbol symbols of stock shares.
 #' @param source the available data sources are 'yahoo' (\url{http://finance.yahoo.com}) and '163' (\url{http://money.163.com}).
-#' @param type the data type, including history, dividend and split. Default is history.
+#' @param type the data type, including history, adjfactor and spot. Default is history.
 #' @param freq default is daily. It supports daily, weekly and monthly for yahoo data; daily for 163 data.
 #' @param date_range date range. Available value including '1m'-'11m', 'ytd', 'max' and '1y'-. Default is '3y'.
 #' @param from the start date. Default is NULL.
 #' @param to the end date. Default is current system date.
-#' @param adjust logical, whether to adjust the prices for dividend. The price data already adjust for splits by default.
+#' @param adjust adjust the OHLC prices for split (default), or dividend (both split and dividend). If it is NULL, download the original data.
+#' For the yahoo data, the original data already adjust for split, and use the 'close_adj' column to adjust; for the 163 data, the original doesnot adjust any factors, and use the splits, dividends and issues to adjust.
 #' @param print_step A non-negative integer. Print symbol name by each print_step iteration. Default is 1L.
 #' @param ... Additional parameters.
 #' 
@@ -30,12 +31,9 @@
 #' ## the symbol with suffix
 #' dt_yahoo3 = md_stock(c("000001.sz", "000001.ss"))
 #' 
-#' # split
-#' dt_split = md_stock(symbol=c("AAPL", "000001.SZ", "000001.SS"), 
-#'                     type='split', date_range='max')
-#' # dividend
-#' dt_dividend = md_stock(symbol=c("AAPL", "000001.SZ", "000001.SS"), 
-#'                        type='dividend', date_range='max')
+#' # adjust factors, splits and dividend
+#' dt_adj = md_stock(symbol=c("AAPL", "000001.SZ", "000001.SS"), 
+#'                     type='adjfactor', date_range='max')
 #' 
 #'  
 #' # Example II
@@ -62,11 +60,15 @@
 #' }
 #' 
 #' @export
-md_stock = function(symbol, source = "yahoo", freq = "daily", date_range = "3y", from = NULL, to = Sys.Date(), type='history', adjust = FALSE, print_step = 1L, ...) {
+md_stock = function(symbol, source = "yahoo", freq = "daily", date_range = "3y", from = NULL, to = Sys.Date(), type='history', adjust = 'split', print_step = 1L, ...) {
     # cat(source,"\n")
     
     # arguments
+    type = check_arg(type, c('history', 'spot', 'adjfactor'))
+    
     source = check_arg(as.character(source), c('yahoo','163'), default = 'yahoo')
+    if (type == 'spot') source = '163'
+    
     syb = tolower(symbol)
     ## remove NAs from the yahoo data
     na_rm = list(...)[['na_rm']]

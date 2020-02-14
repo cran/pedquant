@@ -52,7 +52,9 @@ fs_symbol1_cn = function(symbol, type) {
 fs_cn = function(symbol, type=NULL, print_step=1L) {
     . = name = name_en = NULL
   
-    if (type == 'summary') return(fs_cn1_summary(symbol))
+    # type is summary
+    if (any(type == 'summary')) return(fs_cn1_summary(symbol))
+    
     # type
     fs_type_163 = setDT(copy(financial_statements_163))
     type = select_rows_df(dt = fs_type_163[,.(type, name, name_en)], column = 'type', input_string=type)[,type]
@@ -139,9 +141,9 @@ fs_cn1_summary = function(symbol1) {
 #' 
 #' # manually specify type of financial table
 #' # type = "fr0"
-#' dat2 = md_stock_financials("000001", type="fr0")
+#' dat2 = md_stock_financials("000001", type="fs0")
 #' # or type = "fr0_summary"
-#' dat3 = md_stock_financials("000001", type="fr0_summary")
+#' dat3 = md_stock_financials("000001", type="fs0_summary")
 #' 
 #' # multiple symbols and statements
 #' dat4 = md_stock_financials(c("000001", "600000"), type = "fi")

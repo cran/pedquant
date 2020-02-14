@@ -24,7 +24,7 @@ dim_nbs_db = function() {
 
 #' @importFrom rvest html_nodes html_text %>%
 nbs_read_json = function(url, eng=FALSE) {
-  wb = load_web_source(url)
+  wb = url# load_web_source(url)
   
   dt = read_html(wb) %>% 
     html_nodes('pre') %>% 
@@ -70,6 +70,7 @@ nbs_symbol1 = function(geo_type=NULL, freq=NULL, symbol='zb', eng=FALSE) {
 #' 
 #' \code{ed_nbs_symbol} provides an interface to query symbols of economic indicators from NBS.
 #' 
+#' @param symbol symbols of NBS indicators.
 #' @param geo_type geography type in NBS, including 'nation', 'province', 'city'. Default is NULL.
 #' @param freq the frequency of NBS indicators, including 'monthly', 'quarterly', 'yearly'. Default is NULL.
 #' @param eng logical. The language of the query results is in English or in Chinese. Default is FALSE.
@@ -83,8 +84,8 @@ nbs_symbol1 = function(geo_type=NULL, freq=NULL, symbol='zb', eng=FALSE) {
 #' @importFrom jsonlite fromJSON 
 #' @importFrom utils menu data
 #' @export
-ed_nbs_symbol = function(geo_type=NULL, freq=NULL, eng=FALSE) {
-  symbol = is_parent = NULL
+ed_nbs_symbol = function(symbol=NULL, geo_type=NULL, freq=NULL, eng=FALSE) {
+  is_parent = NULL
   
   # geography type
   geo_type = check_arg(geo_type, choices = c("nation", "province", "city"), arg_name = 'geo_type')
@@ -95,11 +96,14 @@ ed_nbs_symbol = function(geo_type=NULL, freq=NULL, eng=FALSE) {
     freq = check_arg(freq, choices = c("monthly", "quarterly", "yearly"), arg_name = 'freq')
   }
   
-  sel_symbol = NULL
+  sel_symbol = symbol
   is_parent = TRUE
-  while (is_parent) {
+  len_symbol_df = 1
+  while (is_parent & len_symbol_df>0) {
     symbol_df = nbs_symbol1(geo_type, freq, sel_symbol, eng)
-    sel_symbol = select_rows_df(symbol_df, column='symbol', onerow=TRUE)
+    len_symbol_df = nrow(symbol_df)
+    
+    if (len_symbol_df>0) sel_symbol = select_rows_df(symbol_df, column='symbol', onerow=TRUE) else break
     is_parent = sel_symbol[, is_parent]
     sel_symbol = sel_symbol[, symbol]
   }
@@ -175,9 +179,17 @@ ed_nbs_subregion = function(geo_type=NULL, eng=FALSE) {
 
 #  query data # zb symbol, sj date, reg subregion
 #' @importFrom jsonlite fromJSON 
-ed1_nbs = function(nbs_geo, symbol1, subregion=NULL, from, eng=FALSE) {
+ed1_nbs = function(symbol1, geo_type, subregion=NULL, from, freq, eng=FALSE) {
+  dim_freq = dim_geo_type = dim_sta_db = NULL
+  
+  # name database
+  nbs_geo = dim_nbs_db()[dim_geo_type==geo_type & dim_freq==freq, dim_sta_db]
+  
   url_nbs = sel_nbs_url(eng)
   time_sec = as.character(date_to_sec()*100)
+  
+  ## symbol
+  symbol1 = ed_nbs_symbol(symbol=symbol1, geo_type, freq, eng)
   
   # date range
   freq_mqa = which(substr(nbs_geo, 3, 3) == c('y','j','n'))
@@ -324,8 +336,7 @@ ed_nbs = function(symbol=NULL, freq=NULL, geo_type=NULL, subregion=NULL, date_ra
   } else {
     freq = check_arg(freq, choices = c("monthly", "quarterly", "yearly"), arg_name = 'freq')
   }
-  ## symbol
-  if (is.null(symbol)) symbol = ed_nbs_symbol(geo_type, freq, eng)
+  
   ## subregion
   if (geo_type %in% c('province', 'city')) {
     subregion_df = ed_nbs_subregion(geo_type, eng)
@@ -335,13 +346,13 @@ ed_nbs = function(symbol=NULL, freq=NULL, geo_type=NULL, subregion=NULL, date_ra
   ft = get_fromto(date_range, from, to, min_date = "1000-01-01", default_date_range = '10y')
   from = ft$f
   to = ft$t
+  ## symbol
+  if (is.null(symbol)) symbol = ed_nbs_symbol(geo_type = geo_type, freq = freq, eng = eng)
   
   # jsondat
   jsondat_list = NULL
-  # name database
-  nbs_geo = dim_nbs_db()[dim_geo_type==geo_type & dim_freq==freq, dim_sta_db]
   for (s in symbol) {
-    temp = ed1_nbs(nbs_geo, symbol1=s, subregion, from, eng)
+    temp = ed1_nbs(symbol1=s, geo_type, subregion, from, freq, eng)
     temp = nbs_jsondat_format(temp)[date>=from & date<=to,]
     if (!is.null(subregion)) temp = temp[geo_code %in% subregion]
     if (na_rm) temp = temp[!is.na(value)]

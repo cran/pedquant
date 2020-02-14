@@ -1,3 +1,9 @@
+# pedquant 0.1.3
+
+* Fixed a bug in ed_nbs when the symbol provided is wrong.
+* Added china district code in ed_code function.
+* Added a new function md_stock_adjust to adjust the OHLC prices for splits and dividend.
+
 # pedquant 0.1.2
 
 * Modified ed_nbs functions to load data in Chinese

@@ -5,15 +5,14 @@
 \title{calculating returns by frequency}
 \usage{
 pq_return(dt, x = "close|value", method = "arithmetic", freq = "all",
-  date_range = "max", from = NULL, to = Sys.Date(),
-  print_step = 1L)
+  date_range = "max", from = NULL, to = Sys.Date(), print_step = 1L)
 }
 \arguments{
 \item{dt}{a list/dataframe of daily series dataset}
 
 \item{x}{the variable used to calculate returns.}
 
-\item{method}{the method to calcualte returns.}
+\item{method}{the method to calculate returns.}
 
 \item{freq}{the frequency of returns. It supports c('all', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly').}
 
@@ -30,7 +29,7 @@ pq_return(dt, x = "close|value", method = "arithmetic", freq = "all",
 }
 \examples{
 \donttest{
-#' dts = md_stock(c('000001', '^000001'), source = '163')
+dts = md_stock(c('000001', '^000001'), source = '163')
 
 # set freq
 dts_returns1 = pq_return(dts, freq = 'all')
