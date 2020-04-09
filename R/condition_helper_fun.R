@@ -58,10 +58,11 @@ get_fromto = function(date_range, from, to, min_date, default_date_range = 'max'
             from = as.Date(to) - as.integer(sub("d","",date_range))
         } else if (grepl("[1-9][0-9]*w", date_range)) {
             from = as.Date(to) - as.integer(sub("d","",date_range))*7
-        } else if (grepl("[1-9,10,11]m", date_range)) {
+        } else if (grepl("[1-9][0-9]*m", date_range)) {
             month_range = as.integer(sub("m","",date_range))
             month_to = as.integer(sub("^[0-9]{4}-([0-9]{1,2})-.+$", "\\1", to))
-            year_to = as.integer(format(as.Date(to), "%Y"))
+            year_to = as.integer(format(as.Date(to), "%Y")) - floor(month_range/12)
+            month_range = month_range %% 12
             if (month_to <= month_range) {
                 from = paste(year_to-1, 12+month_to-month_range, sub("[0-9]{4}-[0-9]{1,2}-","",to), sep="-")
             } else {
@@ -91,7 +92,7 @@ get_fromto = function(date_range, from, to, min_date, default_date_range = 'max'
 }
 
 # this function has been removed
-tags_symbol_stockcn = function(symbol, mkt) {
+tags_symbol_stockcn = function(symbol, mkt, only_tags = TRUE) {
     syb = syb3 = NULL
     
     sm = data.table(
@@ -132,6 +133,7 @@ tags_symbol_stockcn = function(symbol, mkt) {
     # } else if (nchar(symbol2)==5) {
     #     tags = ifelse(substr(symbol2,1,2)=="08", "hkex,,gem", "hkex,,main")
     # }
+    if (only_tags) tags = tags[,tags]
     return(tags)
 }
 # tags of SSE/SZSE shares symbols
@@ -139,37 +141,61 @@ tags_dt = function() {
     tags = exchg_code = NULL
     
     setDT(list(
-        mkt = c('stock','stock','stock','stock','stock','stock','stock','stock','stock','stock','stock','stock','index','index'),
-        syb3 = c("600","601","603","900","000","001","002","003","004","300","200","201","000","399"),
-        tags = c("sse,A,main", "sse,A,main", "sse,A,main", "sse,B,-", "szse,A,main", "szse,A,main", "szse,A,sme", "szse,A,sme", "szse,A,sme", "szse,A,chinext", "szse,B,-", "szse,B,-", "sse,-,-", "szse,-,-"),
-        city = c(rep('sh',4), rep('sz',8),'sh','sz'),
-        city_code = c(rep('0',4), rep('1',8),'0','1')
+        mkt = c(rep('stock', 13), rep('index', 2), rep('fund', 6) ),
+        syb3 = c(
+            "600","601","603","688","900",
+            "000","001","002","003","004","300","200","201",
+            "000","399",
+            "15", "16", "18", "50", "51", "52"
+        ),
+        tags = c(
+            "sse,A,main", "sse,A,main", "sse,A,main", "sse,A,star", "sse,B,-", 
+            "szse,A,main", "szse,A,main", "szse,A,sme", "szse,A,sme", "szse,A,sme", "szse,A,chinext", "szse,B,-", "szse,B,-", 
+            "sse,-,-", "szse,-,-",
+            "szse,-,-", "szse,-,-", "szse,-,-", "sse,-,-", "sse,-,-", "sse,-,-"
+        )
     ))[,(c('exchange','AB','board')) := tstrsplit(tags,',')
-       ][, exchg_code := toupper(substr(tags,1,2))][]
+     ][, exchg_code := toupper(substr(tags,1,2))
+     ][exchg_code == 'SS', `:=`(city='sh', city_code='0')
+     ][exchg_code == 'SZ', `:=`(city='sz', city_code='1')][]
+    
 }
 check_symbol_cn = function(symbol, mkt = NULL) {
-    exchg_code = syb3 = syb = syb_code = NULL
+    exchg_code = syb3 = syb = syb_code = syb_num = city = . = NULL
      
     tags = tags_dt()[, exchg_code := tolower(exchg_code)][]
     
-    cn_dt = setDT(list(symbol = tolower(symbol)))
-    if (length(mkt) == 1) mkt = rep(mkt, length(symbol))
-    if (is.null(mkt) & !all(grepl('[a-zA-Z]', symbol))) mkt = ifelse(grepl("\\^",symbol),"index","stock")
-    if (!is.null(mkt) & length(symbol) == length(mkt)) cn_dt[, mkt := mkt]
+    cn_dt = setDT(list(symbol = tolower(symbol)))[, syb_num := 3]
+    if (!is.null(mkt) & length(mkt) == 1) {
+        mkt = rep(mkt, length(symbol))
+        cn_dt[, mkt := mkt]
+    } else if (!is.null(mkt) & length(mkt) == length(symbol)) {
+        cn_dt[, mkt := mkt]
+    } else if (is.null(mkt) & !all(grepl('[a-zA-Z]', symbol))) {
+        fund_syb3 = tags[mkt == 'fund', paste0('^',syb3, collapse = '|')]
+        
+        cn_dt[grepl("^\\^",symbol), mkt := 'index'
+          ][grepl(fund_syb3, symbol), `:=`(mkt = "fund", syb_num = 2)
+          ][is.na(mkt), mkt := 'stock']
+    }
     
     cn_dt = cn_dt[, `:=`(
         syb = sub("^.*?([0-9]+).*$","\\1",symbol),
         syb_code = gsub("[^a-zA-Z]+",'',symbol)
-    )][,syb3 := substr(syb,1,3)][]
+    )][,syb3 := substr(syb, 1, syb_num)
+     ][syb_code %in% c('ss','sz'), exchg_code := syb_code
+     ][syb_code %in% c('sh','sz'), city := syb_code][]
     
-    if (all(cn_dt[,unique(syb_code)] %in% c('ss','sz'))) {
-        cn_dt[['exchg_code']] = cn_dt[['syb_code']]
-    } else if (all(cn_dt[,unique(syb_code)] %in% c('sh','sz'))) {
-        cn_dt[['city']] = cn_dt[['syb_code']]
-    }
-    
-    by_cols = intersect(names(cn_dt), names(tags))
-    cn_tag = merge(cn_dt, tags, by = by_cols, all.x = TRUE, sort = FALSE)
+    cn_tag_lst = lapply(list(
+        cn_dt[!is.na(exchg_code)][,.(syb3, exchg_code, symbol, syb)],
+        cn_dt[is.na(exchg_code) & !is.na(city)][,.(syb3, city, symbol, syb)],
+        cn_dt[is.na(exchg_code) & is.na(city)][,.(mkt, syb3, symbol, syb)]
+    ), function(c) {
+        by_cols = intersect(names(c), names(tags))
+        sub_cn_tags = merge(c, tags, by = by_cols, all.x = TRUE, sort = FALSE)
+        return(sub_cn_tags)
+    })
+    cn_tag = rbindlist(cn_tag_lst, fill = TRUE)
     
     return(cn_tag)
 }
@@ -334,17 +360,18 @@ load_web_source2 = function(url, sleep_time = 0, close_remDr = TRUE) {
     # docker # browser + webDriver + selenium
     ## https://docs.docker.com/docker-for-mac/
     ## https://hub.docker.com/u/selenium/
+    ## [An Introduction to Using Selenium-Docker Containers for End-to-End Testing](https://robotninja.com/blog/introduction-using-selenium-docker-containers-end-end-testing/)
     
     # docker command
     ## docker run hello-world
     ## docker pull selenium/standalone-chrome
-    ## docker run -d -p 4445:4444 selenium/standalone-firefox
+    ## docker image ls
+    ## docker run -d -p 4445:4444 selenium/standalone-chrome
     ## docker ps
-    ## sudo docker stop $(docker ps -q)
-    
-    
+    ## docker stop CONTAINER
+
     remDr <- remoteDriver(port = 4445L, browserName = "chrome")
-    remDr$open()
+    remDr$open(silent = TRUE)
     
     # navigate
     remDr$navigate(url)
@@ -420,28 +447,28 @@ load_dat_loop = function(symbol, func, args=list(), print_step) {
 
 
 # extract table from html via xml2 package
-#' @import data.table
-xml_table = function(wb, num=NULL, sup_rm=NULL, attr=NULL, header=FALSE) {
-    doc0 = xml_find_all(wb, paste0("//table",attr)) # attr = '[@cellpadding="2"]'
-    if (!is.null(num)) doc0 = doc0[num]
-    
-    doc = lapply(
-        doc0,
-        function(x) xml_text(xml_find_all(x, ".//tr"))
-    )
-    
-    dt = lapply(doc, function(x) {
-        if (!is.null(sup_rm)) x = gsub(sup_rm, "", x)
-        
-        dat = data.table(x = x)[, tstrsplit(x, "[\n\t\r]+")]
-        if (header) {
-            dat = setnames(dat[-1], as.character(dat[1]))
-        }
-        return(dat)
-    })
-    
-    return(dt)
-}
+# @import data.table
+# xml_table = function(wb, num=NULL, sup_rm=NULL, attr=NULL, header=FALSE) {
+#     doc0 = xml_find_all(wb, paste0("//table",attr)) # attr = '[@cellpadding="2"]'
+#     if (!is.null(num)) doc0 = doc0[num]
+#     
+#     doc = lapply(
+#         doc0,
+#         function(x) xml_text(xml_find_all(x, ".//tr"))
+#     )
+#     
+#     dt = lapply(doc, function(x) {
+#         if (!is.null(sup_rm)) x = gsub(sup_rm, "", x)
+#         
+#         dat = data.table(x = x)[, tstrsplit(x, "[\n\t\r]+")]
+#         if (header) {
+#             dat = setnames(dat[-1], as.character(dat[1]))
+#         }
+#         return(dat)
+#     })
+#     
+#     return(dt)
+# }
 
 
 # #' last workday date
@@ -489,6 +516,9 @@ lwd <- function(n = 0, d = Sys.Date(), tz = Sys.timezone()) {
 
 api_key = function(src){
     if (src=="fred") return("4330f2f7aab9a42ab9b950cec4428b91")
+    
+    # # data.worldbank.org
+    # if (src=="wb") return(list(App_Token = '6NXEsbrbAhTma4LEVC74QWUlF', Secret_Token = 'n3TnGpllsYFkTLpI_sjexEll07OIY6LS9ECw'))
 }
 
 
@@ -573,7 +603,12 @@ isdatetime = function(x) {
     inherits(x, c("Date","POSIXlt","POSIXct","POSIXt"))
 }
 
-
-
-# Internal data # http://r-pkgs.had.co.nz/data.html
-# usethis::use_data(financial_statements_163, prov_indu_163, symbol_future_sina, symbol_stock_163, code_commodity_exchange, code_stock_exchange, code_country, code_currency, code_china_district, internal = TRUE, overwrite = TRUE)
+# chinese font by os
+chn_font_family = function() {
+    switch(
+        Sys.info()[['sysname']],
+        Windows= 'SimHei',
+        Darwin = 'Hei Regular',
+        NA
+    )
+}

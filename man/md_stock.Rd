@@ -4,14 +4,16 @@
 \alias{md_stock}
 \title{query stock market data}
 \usage{
-md_stock(symbol, source = "yahoo", freq = "daily", date_range = "3y",
-  from = NULL, to = Sys.Date(), type = "history", adjust = "split",
+md_stock(symbol, source = "yahoo", type = "history", freq = "daily",
+  date_range = "3y", from = NULL, to = Sys.Date(), adjust = "split",
   print_step = 1L, ...)
 }
 \arguments{
 \item{symbol}{symbols of stock shares.}
 
 \item{source}{the available data sources are 'yahoo' (\url{http://finance.yahoo.com}) and '163' (\url{http://money.163.com}).}
+
+\item{type}{the data type, including history, adjfactor and spot. Default is history.}
 
 \item{freq}{default is daily. It supports daily, weekly and monthly for yahoo data; daily for 163 data.}
 
@@ -20,8 +22,6 @@ md_stock(symbol, source = "yahoo", freq = "daily", date_range = "3y",
 \item{from}{the start date. Default is NULL.}
 
 \item{to}{the end date. Default is current system date.}
-
-\item{type}{the data type, including history, adjfactor and spot. Default is history.}
 
 \item{adjust}{adjust the OHLC prices for split (default), or dividend (both split and dividend). If it is NULL, download the original data.
 For the yahoo data, the original data already adjust for split, and use the 'close_adj' column to adjust; for the 163 data, the original doesnot adjust any factors, and use the splits, dividends and issues to adjust.}
@@ -42,9 +42,9 @@ dt_yahoo1 = md_stock(symbol=c("^GSPC", "000001.SS"))
 # FAANG
 FAANG = md_stock(c('FB', 'AMZN', 'AAPL', 'NFLX', 'GOOG'), date_range = 'max')
 
-# for Chinese shares
+# for Chinese shares/fund
 ## the symbol without suffix
-dt_yahoo2 = md_stock(c("000001", "^000001"))
+dt_yahoo2 = md_stock(c("000001", "^000001", "512510"))
 ## the symbol with suffix
 dt_yahoo3 = md_stock(c("000001.sz", "000001.ss"))
 
@@ -71,8 +71,12 @@ dt_spot1 = md_stock(symbol=c('600000.SS', '000001.SZ', '000001.SS', '399001.SZ')
 
 # query spot prices of all A shares in sse and szse
 dt_spot2 = md_stock(symbol='a', source="163", type='spot')
-# query spot prices of all index in sse and szse
-dt_spot3 = md_stock(symbol='index', source="163", type='spot')
+# query spot prices of all A/B shares and index in sse and szse
+dt_spot3 = md_stock(symbol=c('a', 'b', 'index'), source="163", type='spot')
+
+# show spot prices and sector/industry
+dt_spot4 = md_stock(symbol = c('a', 'b', 'index', 'fund'), source = '163', 
+  type = 'spot', show_tags = TRUE)
 
 }
 

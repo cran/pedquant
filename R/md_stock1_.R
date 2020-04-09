@@ -25,9 +25,9 @@
 #' # FAANG
 #' FAANG = md_stock(c('FB', 'AMZN', 'AAPL', 'NFLX', 'GOOG'), date_range = 'max')
 #' 
-#' # for Chinese shares
+#' # for Chinese shares/fund
 #' ## the symbol without suffix
-#' dt_yahoo2 = md_stock(c("000001", "^000001"))
+#' dt_yahoo2 = md_stock(c("000001", "^000001", "512510"))
 #' ## the symbol with suffix
 #' dt_yahoo3 = md_stock(c("000001.sz", "000001.ss"))
 #' 
@@ -54,13 +54,17 @@
 #' 
 #' # query spot prices of all A shares in sse and szse
 #' dt_spot2 = md_stock(symbol='a', source="163", type='spot')
-#' # query spot prices of all index in sse and szse
-#' dt_spot3 = md_stock(symbol='index', source="163", type='spot')
+#' # query spot prices of all A/B shares and index in sse and szse
+#' dt_spot3 = md_stock(symbol=c('a', 'b', 'index'), source="163", type='spot')
+#' 
+#' # show spot prices and sector/industry
+#' dt_spot4 = md_stock(symbol = c('a', 'b', 'index', 'fund'), source = '163', 
+#'   type = 'spot', show_tags = TRUE)
 #' 
 #' }
 #' 
 #' @export
-md_stock = function(symbol, source = "yahoo", freq = "daily", date_range = "3y", from = NULL, to = Sys.Date(), type='history', adjust = 'split', print_step = 1L, ...) {
+md_stock = function(symbol, source = "yahoo", type='history', freq = "daily", date_range = "3y", from = NULL, to = Sys.Date(), adjust = 'split', print_step = 1L, ...) {
     # cat(source,"\n")
     
     # arguments
@@ -88,6 +92,7 @@ md_stock = function(symbol, source = "yahoo", freq = "daily", date_range = "3y",
     # data
     dat = try(do.call(paste0("md_stock_", source), args=list(symbol = syb, freq = freq, from = from, to = to, print_step = print_step, env = env, adjust=adjust, zero_rm=zero_rm, na_rm=na_rm, type=type, ...)), silent = TRUE)
     
+    if (is.null(dat)) return(dat)
     # remove error symbols
     error_symbols = names(dat)[which(sapply(dat, function(x) inherits(x, 'try-error')))]
     if (length(error_symbols) > 0) {

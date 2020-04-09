@@ -495,22 +495,22 @@ pp_set_title = function(p, dt, title = NULL) {
         title1 = paste0(title, dt[1,title1]) 
         title2 = dt[1,title2]
         # adding title and annotation
+        # p = p + ggtitle(title1, subtitle = title2)
         p = p + labs(title = title1, subtitle = title2)
     } else {
         p = p + labs(title = title)
     }
     
-    p = p + theme(plot.title    = element_text(margin = margin(b=0)),
-                  plot.subtitle = element_text(margin = margin(b=0)),
-                  text = element_text(
-                      family = switch(Sys.info()[['sysname']],
-                                      Windows= 'SimHei',
-                                      Darwin = 'STHeiti',
-                                      NA) 
-                  ))
+    # showtext_begin();
+    p = p + theme(
+        plot.title    = element_text(margin = margin(t=1, b=1)),
+        plot.subtitle = element_text(margin = margin(t=0, b=1))#,
+        # text = element_text( family = 'wqy-microhei')
+    )
+    # showtext_end();
+    
     return(p)
 }
-
 
 
 # add technical indicators
@@ -693,16 +693,15 @@ pp_add_ti_oscillator = function(
         dat_n[, ti_str := paste0(dat_n, collapse = ' ')]
         
         # set text/labs format
+        # showtext_begin();
         pi = pi + 
             geom_text(x = dat[1, x], y = Inf, aes(label = ti_str), data = dat_n, hjust = 0, vjust = 1, color = 'black', na.rm = TRUE, alpha = 0.6, size = rel(3)) + 
             labs(x=NULL, y=NULL) + theme_bw() + 
-            theme(plot.margin = unit(rep(0, 4), 'cm'),
-                  text = element_text(
-                      family = switch(Sys.info()[['sysname']],
-                                      Windows= 'SimHei',
-                                      Darwin = 'STHeiti', 
-                                      NA) 
-                  ))
+            theme(
+                plot.margin = unit(rep(0, 4), 'cm')#,
+                # text = element_text( family = 'wqy-microhei')
+            )
+        # showtext_end();
         
         # hlines
         hlines = ti_idicators_hline()
@@ -768,7 +767,7 @@ pp_add_ti_oscillator = function(
 #' @param from the start date. Default is NULL. If it is NULL, then calculate using date_range and end date.
 #' @param to the end date. Default is the current date.
 #' @param x the name of column display on chart.
-#' @param addti list of technical indicators or numerical columes in dt. For technical indicator, it is calculated via \code{pq_addti}, which including overlay and oscillator indicators.
+#' @param addti list of technical indicators or numerical columns in dt. For technical indicator, it is calculated via \code{pq_addti}, which including overlay and oscillator indicators.
 #' @param linear_trend a numeric vector. Default is NULL. If it is not NULL, then display linear trend lines on charts. 
 #' @param perf logical, display the performance of input series. Default is FALSE. If it is TRUE, then call \code{pq_code} to convert data into performance trends.
 #' @param yaxis_log logical. Default is FALSE.
