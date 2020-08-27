@@ -64,7 +64,7 @@ md_stock1_fs_cn = function(symbol1, type=NULL, print_step=0L, ...) {
 
 # financial statements summary indicators
 fs_dupont_cn = function(symbol1=NULL, ...) {
-  var_id = value = var14_2 = var14 = fs_num = var04_q = var04 = var10_q = var10 = var01 = var02 = var19 = var03 = var16 = . = EPS = revenue = revenueYOY = revenueQOQ = NP = NPYOY = NPQOQ = ROE_w = CFPS = asset_liability = asset_turnover = profit_margin = ROA = ROE = BVPS = name = symbol = NULL
+  var_id = value = var14_2 = var14 = fs_num = var04_q = var04 = var10_q = var10 = var01 = var02 = var19 = var03 = var16 = . = EPS = revenue = revenueYOY = revenueQOQ = NP = NPYOY = NPQOQ = ROE_w = CFPS = asset_liability = asset_turnover = profit_margin = ROA = ROE = BVPS = name = symbol = fs_month = NULL
   
   # # DuPont Analysis
   # # https://en.wikipedia.org/wiki/DuPont_analysis
@@ -98,9 +98,9 @@ fs_dupont_cn = function(symbol1=NULL, ...) {
   ][, var14_2 := (var14+shift(var14,type='lag'))/2
   ][is.na(var14_2), var14_2 := var14
   ][fs_num > 2, var04_q := var04-shift(var04, type='lag'), by = year(date)
-  ][fs_num > 2 & is.na(var04_q), var04_q := var04
+  ][(fs_num > 2 | fs_month==3) & is.na(var04_q), var04_q := var04
   ][fs_num > 2, var10_q := var10-shift(var10, type='lag'), by = year(date)
-  ][fs_num > 2 & is.na(var10_q), var10_q := var10
+  ][(fs_num > 2 | fs_month==3) & is.na(var10_q), var10_q := var10
   ][, `:=`(
     # http://data.eastmoney.com/bbsj/yjbb/000001.html
     EPS = var01, # EPS
@@ -137,7 +137,7 @@ fs_dupont_cn = function(symbol1=NULL, ...) {
 #' @param print_step A non-negative integer. Print symbol name by each print_step iteration. Default is 1L.
 #' 
 #' @examples 
-#' \donttest{
+#' \dontrun{
 #' # interactively specify type of financial table 
 #' dat1 = md_stock_financials("000001")
 #' 
@@ -157,6 +157,13 @@ fs_dupont_cn = function(symbol1=NULL, ...) {
 #' 
 #' @export
 md_stock_financials = function(symbol, type=NULL, print_step=1L) {
+  . = name = name_en = NULL
+  
+  # type
+  if (!any(type == 'dupont')) {
+    fs_type_163 = setDT(copy(financial_statements_163))
+    type = select_rows_df(dt = fs_type_163[,.(type, name, name_en)], column = 'type', input_string=type)[,type]
+  }
   # if (source == "163") 
   dat_list = load_dat_loop(symbol, 'md_stock1_fs_cn', args = list(type = type), print_step=print_step)
   
