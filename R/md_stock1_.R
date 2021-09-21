@@ -1,8 +1,8 @@
 #' dataset of shanghai composite index
 #'
-#' The daily historical Shanghai Composite Index from the beginning of the Index to the end of July 2020
+#' The daily historical Shanghai Composite Index from the beginning of the Index to Sept 1, 2020
 #'
-#' @format A data frame with 7240 rows and 15 variables:
+#' @format A data frame with 7506 rows and 15 variables:
 #' \describe{
 #'   \item{symbol}{stock ticker symbol}
 #'   \item{name}{stock ticker name}
@@ -11,7 +11,7 @@
 #'   \item{high}{stock price at the highest point during trading}
 #'   \item{low}{stock price at the lowest point during trading}
 #'   \item{close}{stock price at the close of trading}
-#'   \item{prev_close}{stock price at the close of previous trading day}
+#'   \item{close_prev}{stock price at the close of previous trading day}
 #'   \item{change_pct}{change percentage of stock close price}
 #'   \item{volume}{number of shares traded}
 #'   \item{amount}{monetary value of shares traded}
@@ -34,8 +34,8 @@
 #' @param date_range date range. Available value including '1m'-'11m', 'ytd', 'max' and '1y'-. Default is '3y'.
 #' @param from the start date. Default is NULL.
 #' @param to the end date. Default is current system date.
-#' @param adjust adjust the OHLC prices for split (default), or dividend (both split and dividend). If it is NULL, download the original data.
-#' For the yahoo data, the original data already adjust for split, and use the 'close_adj' column to adjust; for the 163 data, the original doesnot adjust any factors, and use the splits, dividends and issues to adjust.
+#' @param adjust whether to adjust the OHLC prices. If it is NULL or FALSE, return the original data. Default is FALSE. 
+#' For the yahoo data, the adjustment is based on the close_adj; for the 163 data, the adjustment is based on the cumulative products of close/close_prev.
 #' @param print_step A non-negative integer. Print symbol name by each print_step iteration. Default is 1L.
 #' @param ... Additional parameters.
 #' 
@@ -85,17 +85,28 @@
 #' dt_spot4 = md_stock(symbol = c('a', 'b', 'index', 'fund'), source = '163', 
 #'   type = 'spot', show_tags = TRUE)
 #' 
+#' # Example IV
+#' # query company information, including profile, IPO, structure of income, structure of employee
+#' dt_info = md_stock('600036', type = 'info')
+#' 
+#' # query structure of income in history only
+#' dt_info2 = md_stock('600036', type = 'info', str_income_hist = TRUE)
+#' 
 #' }
 #' 
 #' @export
-md_stock = function(symbol, source = "yahoo", type='history', freq = "daily", date_range = "3y", from = NULL, to = Sys.Date(), adjust = 'split', print_step = 1L, ...) {
+md_stock = function(symbol, source = "yahoo", type='history', freq = "daily", date_range = "3y", from = NULL, to = Sys.Date(), adjust = FALSE, print_step = 1L, ...) {
     # cat(source,"\n")
-    
+    if (source == '163') {
+        check_internet('www.163.com')
+    } else if (source == 'yahoo') {
+        check_internet('www.yahoo.com')
+    }
     # arguments
-    type = check_arg(type, c('history', 'spot', 'adjfactor'))
+    type = check_arg(type, c('history', 'spot', 'adjfactor', 'info'))
     
     source = check_arg(as.character(source), c('yahoo','163'), default = 'yahoo')
-    if (type == 'spot') source = '163'
+    if (type %in% c('spot', 'info')) source = '163'
     
     syb = tolower(symbol)
     ## remove NAs from the yahoo data

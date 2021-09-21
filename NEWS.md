@@ -1,7 +1,13 @@
+# pedquant 0.1.7
+
+* fixed mutual bugs in the functions such as get_fromto, md_stock_divsplit1_163, md_stock_symbol etc.
+* modified stock adjust method for 163 data
+* md_stock function supports to query listed company information, such as profile, IPO, structure of income, structure of employee
+
 # pedquant 0.1.6
 
 * pq_plot function supports to create interactive graphics based on plotly package
-* modified the selection of type argument in md_stock_financials function
+* modified the selection of type argument in md_stock_finansials function
 
 
 # pedquant 0.1.5

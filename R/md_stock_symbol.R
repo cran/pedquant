@@ -125,27 +125,21 @@ md_stock_symbol_163 = function() {
 
 # nasdaq ------
 md_stock_symbol_nasdaq = function(exchange) {
-  .=Symbol=Name=Sector=industry=NULL
+  . = symbol = name = sector = industry = country = ipoyear = marketCap = NULL
+  
   
   # c("AMEX", "NASDAQ", "NYSE")
   url = sprintf(
-    "https://old.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=%s&render=download",
+    # "https://old.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=%s&render=download",
     # 'http://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=%s&render=download', 
-    exchange)
+    "https://api.nasdaq.com/api/screener/stocks?tableonly=true&exchange=%s&download=true",
+    toupper(exchange))
   
-  dat = load_read_csv(url)[,.(market='stock', exchange=exchange, board=NA, symbol=Symbol, name=Name, sector=Sector, industry)]
-  dat[dat=='n/a'] <- NA
+  dat = fromJSON(url)
+  dat2 = setDT(dat$data$rows)[,.(market='stock', exchange=exchange, board=NA, symbol, name, sector, industry, cap_market=marketCap, ipoyear, country)] 
   
-  return(dat)
+  return(dat2)
 }
-
-
-
-
-
-
-
-
 
 
 # exchange index ------

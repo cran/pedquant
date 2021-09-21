@@ -17,7 +17,7 @@ pp_candle = function(
     addti = list(sma = list(n=50), mm = list(n=25)),
     x_scale = 0.6, subtitle_str = NULL, ...
 ) {
-    price_str = prev_close = change = change_pct = high = low = updn_1day = updn_2day = symbol = V1 = NULL
+    price_str = close_prev = change = change_pct = high = low = updn_1day = updn_2day = symbol = V1 = NULL
     
     # copy dt
     dt = copy(dt)
@@ -56,7 +56,7 @@ pp_candle = function(
         
         ###### overlay techinal indicators ######
         if (!is.null(addti) & length(addti)>0) {
-            p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
+            p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
         }
         
         # add linear trend line
@@ -75,7 +75,7 @@ pp_candle = function(
     
     ###### oscillator techinal indicators ######
     if (!is.null(addti) & length(addti)>0 & num_syb==1) {
-        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
+        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
     } 
     
     return(p)
@@ -88,7 +88,7 @@ pp_candlei = function(
     linear_trend = NULL, multi_series = list(nrow=NULL,ncol=NULL), 
     addti = list(sma = list(n=50), mm = list(n=25)), subtitle_str = NULL, ...
 ) {
-    prev_close=prev_x=symbol=title1=title2=updn_2day=NULL
+    close_prev=prev_x=symbol=title1=title2=updn_2day=NULL
     
     # copy dt
     dt = copy(dt)
@@ -99,7 +99,7 @@ pp_candlei = function(
     
     # x and updn
     dt[, prev_x := shift(x, 1, type='lag'), by = symbol
-    ][updn_2day=='down', `:=`(x1 = prev_x, x2 = x, y1 = prev_close, y2 = close)]
+    ][updn_2day=='down', `:=`(x1 = prev_x, x2 = x, y1 = close_prev, y2 = close)]
     
     # cutom colors
     i <- list(line = list(color = color_up))
@@ -132,7 +132,7 @@ pp_candlei = function(
             
             ###### overlay techinal indicators ######
             if (!is.null(addti) & length(addti)>0) {
-                p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
+                p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
             }
             
             # add linear trend line
@@ -154,7 +154,7 @@ pp_candlei = function(
     
     ###### oscillator techinal indicators ######
     if (!is.null(addti) & length(addti)>0 & num_syb==1) {
-        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
+        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
     }
     
     # set title 
@@ -176,7 +176,7 @@ pp_bar = function(
     addti = list(sma = list(n=50), mm = list(n=25)),
     x_scale = 0.6, subtitle_str = NULL, ...
 ) {
-    price_str = prev_close = change = change_pct = high = low = updn_2day = symbol = V1 = NULL
+    price_str = close_prev = change = change_pct = high = low = updn_2day = symbol = V1 = NULL
     
     # copy dt
     dt = copy(dt)
@@ -186,8 +186,8 @@ pp_bar = function(
     multi_series_all1 = list(...)[['multi_series_all1']]
     
     # # add prev close, change and change_pct
-    # if (!('prev_close' %in% names(dt))) dt = dt[, prev_close := shift(close, 1, type = 'lag')]
-    # if (!('change'     %in% names(dt))) dt = dt[, change := close - prev_close]
+    # if (!('close_prev' %in% names(dt))) dt = dt[, close_prev := shift(close, 1, type = 'lag')]
+    # if (!('change'     %in% names(dt))) dt = dt[, change := close - close_prev]
     # if (!('change_pct' %in% names(dt))) dt = dt[, change_pct := change/close*100]
     
     # plot
@@ -218,7 +218,7 @@ pp_bar = function(
         
         ##### overlay techinal indicators #####
         if (!is.null(addti) & length(addti)>0) {
-            p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
+            p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
         }
         
         # add linear trend line
@@ -237,7 +237,7 @@ pp_bar = function(
     
     ###### oscillator techinal indicators ######
     if (!is.null(addti) & length(addti)>0 & num_syb==1) {
-        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
+        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
     }
     
     return(p)
@@ -250,7 +250,7 @@ pp_bari = function(
     linear_trend = NULL, multi_series = list(nrow=NULL,ncol=NULL), 
     addti = list(sma = list(n=50), mm = list(n=25)), subtitle_str = NULL, ...
 ) {
-    prev_close=prev_x=symbol=title1=title2=updn_2day=NULL
+    close_prev=prev_x=symbol=title1=title2=updn_2day=NULL
     # copy dt
     dt = copy(dt)
     
@@ -260,7 +260,7 @@ pp_bari = function(
     
     # x and updn
     dt[, prev_x := shift(x, 1, type='lag'), by = symbol
-    ][updn_2day=='down', `:=`(x1 = prev_x, x2 = x, y1 = prev_close, y2 = close)]
+    ][updn_2day=='down', `:=`(x1 = prev_x, x2 = x, y1 = close_prev, y2 = close)]
     
     # cutom colors
     i <- list(line = list(color = color_up))
@@ -292,7 +292,7 @@ pp_bari = function(
             
             ###### overlay techinal indicators ######
             if (!is.null(addti) & length(addti)>0) {
-                p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
+                p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
             }
             
             # add linear trend line
@@ -313,7 +313,7 @@ pp_bari = function(
     
     ###### oscillator techinal indicators ######
     if (!is.null(addti) & length(addti)>0 & num_syb==1) {
-        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
+        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
     }
     
     # set title 
@@ -334,7 +334,7 @@ pp_line = function(
     linear_trend = NULL, multi_series = list(nrow=NULL,ncol=NULL), 
     addti = list(sma = list(n=50), mm = list(n=25)), subtitle_str = NULL, ...
 ) {
-    price_str11 = price_str = prev_close = symbol = change = change_pct = high = low = prev_x = updn_2day = x1 = y1 = x2 = y2 = V1 = NULL
+    price_str11 = price_str = close_prev = symbol = change = change_pct = high = low = prev_x = updn_2day = x1 = y1 = x2 = y2 = V1 = NULL
     
     # copy dt
     dt = copy(dt)
@@ -345,7 +345,7 @@ pp_line = function(
     
     # x and updn
     dt[, prev_x := shift(x, 1, type='lag'), by = symbol
-       ][updn_2day=='down', `:=`(x1 = prev_x, x2 = x, y1 = prev_close, y2 = close)]
+       ][updn_2day=='down', `:=`(x1 = prev_x, x2 = x, y1 = close_prev, y2 = close)]
 
     
     # plot
@@ -389,7 +389,7 @@ pp_line = function(
         
         ###### overlay techinal indicators ######
         if (!is.null(addti) & length(addti)>0) {
-            p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
+            p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
         }
         # add linear trend line
         if (!is.null(linear_trend)) 
@@ -407,7 +407,7 @@ pp_line = function(
     
     ###### oscillator techinal indicators ######
     if (!is.null(addti) & length(addti)>0 & num_syb==1) {
-        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
+        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
     }
     
     return(p)
@@ -420,7 +420,7 @@ pp_linei = function(
     linear_trend = NULL, multi_series = list(nrow=NULL,ncol=NULL), 
     addti = list(sma = list(n=50), mm = list(n=25)), subtitle_str = NULL, ...
 ) {
-    prev_close=prev_x=symbol=title1=title2=updn_2day=NULL
+    close_prev=prev_x=symbol=title1=title2=updn_2day=NULL
     # copy dt
     dt = copy(dt)
     
@@ -430,7 +430,7 @@ pp_linei = function(
     
     # x and updn
     dt[, prev_x := shift(x, 1, type='lag'), by = symbol
-    ][updn_2day=='down', `:=`(x1 = prev_x, x2 = x, y1 = prev_close, y2 = close)]
+    ][updn_2day=='down', `:=`(x1 = prev_x, x2 = x, y1 = close_prev, y2 = close)]
     
     
     # plot
@@ -477,7 +477,7 @@ pp_linei = function(
             
             ###### overlay techinal indicators ######
             if (!is.null(addti) & length(addti)>0) {
-                p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
+                p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
             }
             
             # add linear trend line
@@ -498,7 +498,7 @@ pp_linei = function(
     
     ###### oscillator techinal indicators ######
     if (!is.null(addti) & length(addti)>0 & num_syb==1) {
-        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
+        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
     }
     
     # set title 
@@ -519,7 +519,7 @@ pp_step = function(
     linear_trend = NULL, multi_series = list(nrow=NULL,ncol=NULL), 
     addti = list(sma = list(n=50), mm = list(n=25)), subtitle_str = NULL, ...
 ) {
-    price_str11 = price_str = prev_close = symbol = change = change_pct = high = low = prev_x = updn_2day = x1 = y1 = x2 = y2 = V1 = NULL
+    price_str11 = price_str = close_prev = symbol = change = change_pct = high = low = prev_x = updn_2day = x1 = y1 = x2 = y2 = V1 = NULL
     
     # copy dt
     dt = copy(dt)
@@ -530,7 +530,7 @@ pp_step = function(
     
     # x and updn
     dt[, prev_x := shift(x, 1, type='lag'), by = symbol
-       ][updn_2day=='down', `:=`(x1 = prev_x, x2 = x, y1 = prev_close, y2 = close)]
+       ][updn_2day=='down', `:=`(x1 = prev_x, x2 = x, y1 = close_prev, y2 = close)]
     
     
     # last row
@@ -584,7 +584,7 @@ pp_step = function(
         
         ###### overlay techinal indicators ######
         if (!is.null(addti) & length(addti)>0) {
-            p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
+            p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
         }
         # add linear trend line
         if (!is.null(linear_trend)) 
@@ -602,7 +602,7 @@ pp_step = function(
     
     ###### oscillator techinal indicators ######
     if (!is.null(addti) & length(addti)>0 & num_syb==1) {
-        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
+        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti))
     } 
     
     return(p)
@@ -615,7 +615,7 @@ pp_stepi = function(
     linear_trend = NULL, multi_series = list(nrow=NULL,ncol=NULL), 
     addti = list(sma = list(n=50), mm = list(n=25)), subtitle_str = NULL, ...
 ) {
-    prev_close=prev_x=symbol=title1=title2=updn_2day=NULL
+    close_prev=prev_x=symbol=title1=title2=updn_2day=NULL
     # copy dt
     dt = copy(dt)
     
@@ -625,7 +625,7 @@ pp_stepi = function(
     
     # x and updn
     dt[, prev_x := shift(x, 1, type='lag'), by = symbol
-    ][updn_2day=='down', `:=`(x1 = prev_x, x2 = x, y1 = prev_close, y2 = close)]
+    ][updn_2day=='down', `:=`(x1 = prev_x, x2 = x, y1 = close_prev, y2 = close)]
     
     
     # plot
@@ -673,7 +673,7 @@ pp_stepi = function(
             
             ###### overlay techinal indicators ######
             if (!is.null(addti) & length(addti)>0) {
-                p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
+                p = do.call(pp_add_ti_overlay, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
             }
             
             # add linear trend line
@@ -695,7 +695,7 @@ pp_stepi = function(
     
     ###### oscillator techinal indicators ######
     if (!is.null(addti) & length(addti)>0 & num_syb==1) {
-        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from-365 & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
+        p = do.call(pp_add_ti_oscillator, args = list(p = p, dt = dt[date>=from & date <= to], from = from, to = to, rm_weekend = rm_weekend, addti = addti, interact = TRUE))
     } 
     
     # set title 
@@ -1456,7 +1456,7 @@ pq_plot = function(
     multi_series = list(nrow=NULL, ncol=NULL), 
     rm_weekend = NULL, title = NULL, interact = FALSE, ...) {
     
-    xcol=symbol=.=prev_close=name=title1=updn_2day=change=change_pct=price_str11=NULL
+    xcol=symbol=.=close_prev=name=title1=updn_2day=change=change_pct=price_str11=NULL
     
     ## change freq of input data
     if (!is.null(freq) || match.arg(freq, 'daily')!='daily') {
@@ -1495,19 +1495,19 @@ pq_plot = function(
     from = ft$f
     to = ft$t
     
-    # add columns of rowid, prev_close, change, change_pct, x, title1, title2, updn_2day, 
+    # add columns of rowid, close_prev, change, change_pct, x, title1, title2, updn_2day, 
     # rowid
     dt = dt[unique(dt[,.(date)])[order(date)][,rowid := .I][], on='date']
-    # prev_close, change, change_pct, x, title1, title2, updn_2day, 
-    dt = dt[, prev_close := shift(close, 1, type = 'lag'), by = symbol
+    # close_prev, change, change_pct, x, title1, title2, updn_2day, 
+    dt = dt[, close_prev := shift(close, 1, type = 'lag'), by = symbol
      ][, `:=`(
-         change = close - prev_close,
-         change_pct = (1-prev_close/close)*100,
+         change = close - close_prev,
+         change_pct = (1-close_prev/close)*100,
          x = date
      )][, `:=`(
          title1 = paste(symbol, name[.N]),
          title2 = sprintf('[%s/%s]', from, to),
-         updn_2day = ifelse(close > prev_close, 'up', 'down')
+         updn_2day = ifelse(close > close_prev, 'up', 'down')
      ), by = symbol]
     # set title1 as factor
     dt = dt[, `:=`(title1 = factor(title1, levels = dt[,unique(title1)]))]
@@ -1567,7 +1567,7 @@ pq_plot = function(
                 rm_weekend = rm_weekend, title = title, 
                 multi_series = multi_series,
                 linear_trend = linear_trend, 
-                multi_series_all1=multi_series_all1,
+                multi_series_all1 = multi_series_all1,
                 subtitle_str = subtitle_str
             ))
         )
@@ -1590,7 +1590,7 @@ pq_plot = function(
                     rm_weekend = rm_weekend, title = title, 
                     multi_series = multi_series,
                     linear_trend = linear_trend,
-                    multi_series_all1=multi_series_all1,
+                    multi_series_all1 = multi_series_all1,
                     subtitle_str = subtitle_str[symbol == s]
                 ))
             )

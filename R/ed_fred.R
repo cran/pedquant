@@ -50,6 +50,8 @@ ed_fred1 = function(symbol1, from="1776-07-04", to="9999-12-31", na_rm=FALSE) {
     }
     
     # observation data of symbol1
+    if (nrow(series) == 0) series[, title := NA][, units := NA]
+    
     observ = setDT(
         fromJSON(sprintf(base_url, sprintf("series/observations?series_id=%s&observation_start=%s&observation_end=%s&", symbol1, from, to), key))[["observations"]]
     )[,`:=`(name=series[1,title], geo=geo, unit=series[1,units]
@@ -81,6 +83,7 @@ ed_fred1 = function(symbol1, from="1776-07-04", to="9999-12-31", na_rm=FALSE) {
 #' 
 #' @export
 ed_fred = function(symbol=NULL, date_range='10y', from=NULL, to=Sys.Date(), na_rm=FALSE, print_step=1L) {
+    check_internet('www.stlouisfed.org')
     # 
     if (is.null(symbol)) symbol = ed_fred_symbol()[,symbol]
     # from/to # "1776-07-04"/"9999-12-31"
@@ -228,6 +231,7 @@ ed_fred_symbol_category = function(category=NULL, ...) {
 #' @export
 ed_fred_symbol = function(category=NULL, keywords = NULL, ...) {
     frequency = . = symbol = name = last_updated = NULL 
+    check_internet('www.stlouisfed.org')
     
     if (is.null(keywords)) {
         series = ed_fred_symbol_category(category = category, ...)

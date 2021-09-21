@@ -1,35 +1,48 @@
 # https://github.com/joshuaulrich/quantmod/blob/a8e9cb87825c0997a8468f5105db6c507b26ac5d/R/adjustOHLC.R
 
-md_stock_adjust1 = function(dt, source, adjust = 'split', adjfactor = NULL, ...) {
-    close_adj=ratio=symbol=V1=.=dividends=splits=issue_rate=issue_price=prev_close=factor_adj_spl=factor_adj_div=factor_adj=volume=name=splits_cum=NULL
+md_stock_adjust1 = function(dt, source=NULL, adjust = TRUE, adjfactor = NULL, ...) {
+    close_adj=ratio=symbol=V1=.=dividends=splits=issue_rate=issue_price=close_prev=factor_adj_spl=factor_adj_div=factor_adj=volume=name=splits_cum=adjratio=adjratio_cumchg=NULL
     
     # return original dt 
     ## if adjust is null
-    if (is.null(adjust)) return(dt)
+    if (is.null(adjust) || isFALSE(adjust)) return(dt)
     ## if dt has OHLC columns
     cols_ohlc = c('open', 'high', 'low', 'close')
     if (!all(cols_ohlc %in% names(dt))) return(dt)
     
+    if (is.null(source)) {
+        if (dt[!is.na(close_adj), .N>0]) {
+            source = 'yahoo'
+        } else if (dt[!is.na(close_prev), .N>0]) {
+            source = '163'
+        }
+    }
+    
     # adjusting price
     ## for data from yahoo
     if (source == 'yahoo') {
-        if (adjust == 'split') {
-            return(dt)
-        } else if (adjust == 'dividend') {
-            dt = dt[, ratio := close_adj/close
-                    ][, (cols_ohlc) := lapply(.SD, function(x) x*ratio), .SDcols = cols_ohlc
-                      ][, ratio := NULL]
-            # symbol.name = '000001.'
-            # div <- getDividends(symbol.name, from="1900-01-01")
-            # splits <- getSplits(symbol.name, from="1900-01-01")
-        }
-        
+        dt = copy(dt)[, adjratio := close_adj/close
+        ][, (cols_ohlc) := lapply(.SD, function(x) x*adjratio), .SDcols = cols_ohlc
+        ][, adjratio := NULL]
+        # symbol.name = '000001.'
+        # div <- getDividends(symbol.name, from="1900-01-01")
+        # splits <- getSplits(symbol.name, from="1900-01-01")
     ## for data from 163
     } else if (source == '163') {
         # https://wiki.mbalib.com/wiki/%E9%99%A4%E6%9D%83%E9%99%A4%E6%81%AF%E6%97%A5
-        
+        # zhuanlan.zhihu.com/p/283168542
+        if (is.null(adjfactor)) {
+            dt = copy(dt)[
+                order(date)
+            ][, adjratio_cumchg := cumprod(close/close_prev)
+            ][, close_adj := close[.N]/adjratio_cumchg[.N]*adjratio_cumchg
+            ][, adjratio := close_adj/close
+            ][, (cols_ohlc) := lapply(.SD, function(x) x*adjratio), .SDcols = cols_ohlc
+            ][, (c('adjratio_cumchg', 'adjratio')) := NULL]
+            
+        } else {
         if (!inherits(adjfactor,'data.frame')) {
-            symbol1 = dt[1, tstrsplit(symbol, '\\.')][,V1]
+            symbol1 = sub('([0-9]+).+', '\\1', dt[1, symbol])
             divspl = try(md_stock_divsplit1_163(symbol1), silent = TRUE)
             if (inherits(divspl, 'try-error')) {
                 warning(sprintf('Returning original data for %s',symbol1))
@@ -81,6 +94,7 @@ md_stock_adjust1 = function(dt, source, adjust = 'split', adjfactor = NULL, ...)
                 factor_adj_div = NULL
             )]
         dt = cbind(dt[,.(symbol, name)], dt_adj)
+        }
     }
     return(dt)
 }
@@ -90,38 +104,29 @@ md_stock_adjust1 = function(dt, source, adjust = 'split', adjfactor = NULL, ...)
 #' \code{md_stock_adjust} adjusts the open, high, low and close stock prices for split and dividend. 
 #' 
 #' @param dt a list/dataframe of time series datasets that didnt adjust for split or dividend.
-#' @param source the available data sources are 'yahoo' (\url{https://finance.yahoo.com}) and '163' (\url{https://money.163.com}).
-#' @param adjust adjust the OHLC prices for split (default), or dividend (both split and dividend). If it is NULL, return the original data.
-#' For the yahoo data, the original data already adjust for split, and use the 'close_adj' column to adjust; for the 163 data, the original doesnot adjust any factors, and use the splits, dividends and issues to adjust.
-#' @param adjfactor adjust factors, including splits and dividends. Defaults to NULL, which will load adjust factors from source. It can also download from md_stock when type set as adjfactor.
+#' @param source the available data sources are 'yahoo' and '163'. The source will set to yahoo, if the dt has close_adj column; and will set to 163, if the dt has close_prev column. 
+#' @param adjust whether to adjust the OHLC prices. If it is NULL or FALSE, return the original data. Default is TRUE. 
+#' For the yahoo data, the adjustment is based on the close_adj; for the 163 data, the adjustment is based on the cumulative products of close/close_prev.
+#' @param ... Additional parameters.
 #' 
 #' @examples 
 #' \donttest{
-#' dt = md_stock('600547', source = '163', date_range = 'max', 
-#'               type = 'history', adjust = NULL)
-#' ds = md_stock('600547', source = '163', date_range = 'max', 
-#'               type = 'adjfactor')
+#' dt = md_stock('600547', source = '163', date_range = 'max')
 #' 
-#' dtadj = md_stock_adjust(dt, source = '163', adjust = 'dividend', 
-#'                         adjfactor = ds)
+#' dtadj = md_stock_adjust(dt, source = '163')
 #' }
 #' @export
-md_stock_adjust = function(dt, source, adjust = 'split', adjfactor = NULL) {
+md_stock_adjust = function(dt, source = NULL, adjust = TRUE, ...) {
     symbol = NULL
     
-    # bind dataframe list
+    # dt
     if (inherits(dt, 'list')) dt = rbindlist(dt, fill = TRUE)
     dt = setDT(dt)
+    # adjfactor
+    adjfactor = list(...)[['adjfactor']]
     if (inherits(adjfactor, 'list')) adjfactor = rbindlist(adjfactor, fill = TRUE)
-    adjfactor = setDT(adjfactor)
-    
-    # arguments
-    source = check_arg(as.character(source), c('yahoo','163'))
-    if (length(intersect(adjust, c('split','dividend'))) == 2) {
-        adjust = 'dividend'
-    } else if (!is.null(adjust)) adjust = check_arg(as.character(adjust), c('split','dividend'), default = 'split')
-    
-    
+    if (inherits(adjfactor, 'data.frame')) adjfactor = setDT(adjfactor)
+
     ## single series
     dt_list = list()
     sybs = dt[, unique(symbol)]
@@ -145,3 +150,15 @@ md_stock_adjust = function(dt, source, adjust = 'split', adjfactor = NULL) {
 
 # dddttt = copy(dat$`000001`)
 # dddttt[, close_adj := cap_market/(cap_market[.N]/close[.N])]
+
+
+
+# https://zhuanlan.zhihu.com/p/266430753
+if (F) {
+    library(data.table)
+    library(pedquant)
+    
+    datorig = md_stock('600036', source = '163', date_range = 'max', adjust = NULL)
+    datadj = md_stock('600036', source = '163', date_range = 'max', type = 'adjfactor')
+    
+}
