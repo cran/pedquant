@@ -1,4 +1,24 @@
 ########################### condition functions ###########################
+# check dt
+check_dt = function(dt, symb_name = TRUE, check_date = TRUE) {
+    if (is.null(dt)) return(dt)
+    
+    if (inherits(dt, 'list')) dt = rbindlist(dt, fill = TRUE)
+    dt = setDT(dt)[]
+    
+    dtcols = names(dt)
+    
+    if (check_date & 'date' %in% dtcols) dt = dt[, date := as_date(date)]
+        
+    if (symb_name) {
+        for (sn in c('symbol', 'name')) {
+            if (!(sn %in% dtcols)) dt[[sn]] = sn
+        }
+    }
+
+    return(dt)
+}
+    
 # check arguments
 check_arg = function(arg, choices, default=NULL, arg_name = 'argument') {
     while (is.null(arg) || length(arg)==0) {
@@ -21,99 +41,29 @@ check_date_range = function(date_range, default = "max") {
     return(date_range)
 }
 
-# check date format of from/to
-check_fromto = function(fromto, type="date", shift = 0) {
-    type = check_arg(type, c("date", "time"), "date")
-    
-    # type: dates or times
-    if (inherits(fromto, "character")) {
-        if (grepl("-|/",fromto)) {
-            fromto = as.Date(fromto)
-        } else {
-            if (nchar(fromto)==6) {
-                fromto = as.Date(fromto, format="%y%m%d")
-            } else if (nchar(fromto) == 8) {
-                fromto = as.Date(fromto, format="%Y%m%d")
-            }
-        }
-        
-        if (type != "date") fromto = as.POSIXct(paste(fromto+shift, "00:00:00"))
-    }
-    
-    return(fromto)
-}
 
-getfrom_xm = function(date_range, to) {
-    if (inherits(to, 'character')) to = as.Date(to)
-    to_year = year(to)
-    to_month = month(to)
-    to_day = mday(to)
+
+# check column name
+check_xcol = function(dt, x) {
+    if (inherits(dt, 'list')) dt = rbindlist(dt, fill = TRUE)
     
-    xmonth_range = as.integer(sub("m","",date_range))
-    
-    if (to_month > xmonth_range) {
-        from = paste(to_year, to_month-xmonth_range, to_day, sep="/")
-    } else {
-        from = paste(to_year - (floor(xmonth_range/12)+1), to_month + 12 - xmonth_range %% 12, to_day, sep="/")
-    }
-    
-    return(as.Date(from))
-}
-getfrom_xtd = function(date_range, to) {
-    if (inherits(to, 'character')) to = as.Date(to)
-    to_year = year(to)
-    to_quarter = quarter(to)
-    to_month = month(to)
-    
-    if (date_range == 'ytd') {
-        from = paste(to_year, "01", "01", sep="/")
-    } else if (date_range == 'qtd') {
-        from = paste(to_year, to_quarter*3-2, "01", sep="/") 
-    } else if (date_range == 'mtd') {
-        from = paste(to_year, to_month, "01", sep="/")
-    }
-    
-    return(as.Date(from))
-}
-get_fromto = function(date_range, from, to, min_date = '1000-01-01', default_date_range = 'max') {
-    date_range = check_date_range(date_range, default = default_date_range)
-    to = check_fromto(to)
-    min_date = check_fromto(min_date)
-    
-    if (inherits(from, 'character') & any(from == '')) from = NULL
-    if (is.null(from)) {
-        if (grepl("[yqm]td", date_range)) {
-            from = getfrom_xtd(date_range, to)
-        } else if (grepl("[1-9][0-9]*d", date_range)) {
-            from = to - as.integer(sub("d","",date_range))
-        } else if (grepl("[1-9][0-9]*w", date_range)) {
-            from = to - as.integer(sub("w","",date_range))*7
-        } else if (grepl("[1-9][0-9]*m", date_range)) {
-            for (i in c(0, 1, -1, 2, -2)) {
-                from = try(getfrom_xm(date_range, to+i), silent = TRUE)
-                if (!inherits(from, 'try-error')) {
-                    if (i != 0) from = from - i/abs(i)
-                    break
-                }
-            }
-        } else if (grepl("[1-9][0-9]*y", date_range)) {
-            year_from = year(to) - as.integer(sub("y","",date_range))
-            from = sub("^[0-9]{4}", year_from, to)
+    if (is.null(x)) {
+        if ('close' %in% names(dt)) {
+            x = 'close'
+        } else if ('value' %in% names(dt)) {
+            x = 'value'
         } else {
-            from = min_date
+            stop('Please specify the asset price column.')
+        }
+    } else if (!(x %in% names(dt))) {
+        if (grepl('\\|', x)) {
+            x = intersect(unlist(strsplit(x, '\\|')), names(dt))[1] 
+            warning(sprintf('The column of %s is chosen.', x))
+        } else {
+            stop(sprintf('The column %s is not exist in the input data.', x))
         }
     }
-    from = check_fromto(from)
-    if (from < min_date) from = min_date
-    
-    # set class
-    if (inherits(to, "Date")) {
-        from = as.Date(from)
-    } else {
-        from = as.POSIXct(from)
-    }
-    
-    return(list(f=from, t = to))
+    return(x)
 }
 
 # this function has been removed
@@ -183,6 +133,9 @@ tags_dt = function() {
         stock 301 szse,A,chinext
         stock 200 szse,B,main
         stock 201 szse,B,main
+        stock 43 bse,A,main
+        stock 83 bse,A,main
+        stock 87 bse,A,main
         index 000 sse,-,-
         index 399 szse,-,-
         fund 15 szse,-,-
@@ -221,7 +174,7 @@ check_symbol_cn = function(symbol, mkt = NULL) {
     cn_dt = cn_dt[, `:=`(
         syb = sub("^.*?([0-9]+).*$","\\1",symbol),
         syb_code = gsub("[^a-zA-Z]+",'',symbol)
-    )][,syb3 := substr(syb, 1, syb_num)
+    )][nchar(syb) == 6,syb3 := substr(syb, 1, syb_num)
      ][syb_code %in% c('ss','sz'), exchg_code := syb_code
      ][syb_code %in% c('sh','sz'), city := syb_code][]
     
@@ -234,7 +187,10 @@ check_symbol_cn = function(symbol, mkt = NULL) {
         sub_cn_tags = merge(c, tags, by = by_cols, all.x = TRUE, sort = FALSE)
         return(sub_cn_tags)
     })
-    cn_tag = rbindlist(cn_tag_lst, fill = TRUE)
+    cn_tag = rbindlist(cn_tag_lst, fill = TRUE)[
+        is.na(city) & grepl('.hk$', symbol), 
+        `:=`(city = 'hk', exchg_code = 'hk') 
+    ]
     
     return(cn_tag)
 }
@@ -361,28 +317,30 @@ load_read_xl = function(url, handle=new_handle()) {
 
 #download and read csv file from website
 #' @importFrom utils download.file read.csv
+#' @importFrom readr read_csv
 #' @importFrom curl curl_download new_handle
-# load_read_csv2 = function(url, encode="UTF-8") {
-#     temp = tempfile()
-#     download.file(url=url, destfile=temp, quiet=TRUE)
-#     dat = read.csv(temp, fileEncoding = encode)
-#     unlink(temp)
-# 
-#     return(dat)
-# }
+load_read_csv2 = function(url) {
+    temp = tempfile()
+    on.exit(unlink(temp))
+    
+    download.file(url=url, destfile=temp, quiet=TRUE)
+    dat = read_csv(temp)
+
+    return(dat)
+}
 load_read_csv = function(url, encode="UTF-8", handle=new_handle(), csv_header=TRUE) {
     temp = tempfile()
     on.exit(unlink(temp))
     
     curl_download(url, destfile = temp, handle = handle)
-    dat = suppressWarnings(read.csv(temp, fileEncoding = encode, header = csv_header))
-    return(setDT(dat))
+    dat = try(suppressWarnings(read.csv(temp, fileEncoding = encode, header = csv_header)), silent = TRUE)
+    if (inherits(dat, 'try-error')) return(invisible()) 
+    else return(setDT(dat))
 }
 
 
-# @importFrom webdriver run_phantomjs Session install_phantomjs
+#' @importFrom webdriver run_phantomjs Session install_phantomjs
 load_web_source = function(url) {
-    Session = install_phantomjs = run_phantomjs = NULL
     
     pjs <- try(run_phantomjs(), silent = TRUE)
     if (inherits(pjs, 'try-error')) {
@@ -433,6 +391,86 @@ load_web_source2 = function(url, sleep_time = 0, close_remDr = TRUE) {
     return(wb)
 }
 
+#' @importFrom readr read_lines
+#' @importFrom httr POST add_headers
+read_api_sina = function(url) {
+    datmp = GET(
+        url, 
+        add_headers(referer = "https://finance.sina.com.cn/")
+    ) %>% 
+        read_html(encoding = 'GBK') %>% 
+        html_nodes('p') %>% 
+        html_text() %>% 
+        read_lines()
+    
+    return(datmp)
+}
+read_apidata_sina = function(url, sybs, cols_name) {
+    doc = doc2 = symbol = NULL
+    datmp = read_api_sina(url)
+    
+    dt = data.table(
+        doc = datmp
+    )[#, doc := iconv(doc, 'GB18030', 'UTF-8')
+    ][, doc2 := sub('.+=\"(.+)\".+', '\\1', doc)
+    ][, symbol := sybs
+    ][doc != doc2
+    ]
+    
+    dt2 = dt[, tstrsplit(doc2, ',')]
+    dt2 = setnames(dt2, cols_name[1:ncol(dt2)])[, symbol := dt$symbol]
+    return(dt2)
+}
+
+read_api_eastmoney = function(url) {
+    datmp = GET(url) %>% 
+        read_html() %>% 
+        html_nodes('p') %>% 
+        html_text() %>% 
+        fromJSON()
+    
+    return(datmp)
+}
+read_apidata_eastmoney = function(url, type='history') {
+    doc = NULL
+    datmp = read_api_eastmoney(url)
+    if (is.null(datmp$data)) return(invisible())
+    
+    if (type == 'history') {
+        dat = data.table(doc = datmp$data$klines)[, tstrsplit(doc, ',')][,`:=`(
+            symbol = datmp$data$code, 
+            name = datmp$data$name, 
+            market = datmp$data$market
+        )][]
+    } else if (type == 'real_us') {
+        dat = data.table(datmp$data$diff)
+        setnames(dat, c("v1", "close", "change_pct", "change", "volume", "amount", "amplitude", "turnover", "pe", "v2", "v3", "symbol", "exchange_code", "name", "high", "low", "open", "close_prev", 'cap_total', paste0('v', 5:6), "pb", paste0('v', 7:17)))
+    }
+    
+    return(dat)
+}
+
+read_api_tencent = function(url) {
+    datmp = GET(url) %>% 
+        read_html(encoding = 'GBK') %>% 
+        html_nodes('p') %>% 
+        html_text() %>% 
+        read_lines()
+    
+    return(datmp)
+}
+read_apidata_tencent = function(url) {
+    . = doc = doc2 = NULL 
+    
+    datmp = read_api_tencent(url)
+    
+    dat = data.table(
+        doc = datmp
+    )[, .(doc2 = sub('.+=\"(.+)\".+', '\\1', doc))
+    ][, tstrsplit(doc2, '~')]
+    
+    return(dat)
+}
 # fill 0/na in a vector with last non 0/na value
 fill0 = function(x, from_last = FALSE) {
     x[x==0] <- NA
@@ -464,22 +502,9 @@ fillna = function(x, from_last = FALSE) {
 }
 
 
-# convert date to second 
-date_to_sec = function(date=Sys.time()) {
-    datetime = as.POSIXct(as.Date(date, origin = "1970-01-01"))
-    return(trunc(as.numeric(datetime))) 
-}
-
-# end date of month
-first_month_date = function(date) {
-    as.Date(paste0(format(date, '%Y-%m'),'-01'))
-}
-last_month_date = function(date) {
-    first_month_date(first_month_date(date) + 31) - 1
-}
-
 # loop on get_data1
-load_dat_loop = function(symbol, func, args=list(), print_step) {
+#' @importFrom stats rnorm
+load_dat_loop = function(symbol, func, args=list(), print_step, sleep = 0, ...) {
     runif = dt_list = NULL
     syb_len = length(symbol)
     for (i in 1:syb_len) {
@@ -488,78 +513,12 @@ load_dat_loop = function(symbol, func, args=list(), print_step) {
         if ((print_step>0) & (i %% print_step == 0)) cat(sprintf('%s %s\n', paste0(format(c(i, syb_len)), collapse = '/'), syb_i))
         dt_list[[syb_i]] = try(do.call(func, c(syb_i, args)), silent = TRUE)
         # sleep for 1s
-        # Sys.sleep(runif(1))
+        if (sleep > 0) Sys.sleep(abs(rnorm(1, mean=sleep)))
     }
     return(dt_list)
 }
 
 
-# extract table from html via xml2 package
-# @import data.table
-# xml_table = function(wb, num=NULL, sup_rm=NULL, attr=NULL, header=FALSE) {
-#     doc0 = xml_find_all(wb, paste0("//table",attr)) # attr = '[@cellpadding="2"]'
-#     if (!is.null(num)) doc0 = doc0[num]
-#     
-#     doc = lapply(
-#         doc0,
-#         function(x) xml_text(xml_find_all(x, ".//tr"))
-#     )
-#     
-#     dt = lapply(doc, function(x) {
-#         if (!is.null(sup_rm)) x = gsub(sup_rm, "", x)
-#         
-#         dat = data.table(x = x)[, tstrsplit(x, "[\n\t\r]+")]
-#         if (header) {
-#             dat = setnames(dat[-1], as.character(dat[1]))
-#         }
-#         return(dat)
-#     })
-#     
-#     return(dt)
-# }
-
-
-# #' last workday date
-# #' 
-# #' @param n A number.
-# #' @param d Current date in the format "%Y%m%d"
-# #' @return The date which is n days before current date d
-# #' @examples
-# #' lwd(1)
-# #' lwd(3, "20160101")
-# #' 
-lwd <- function(n = 0, d = Sys.Date(), tz = Sys.timezone()) {
-    
-    #weekday
-    w <- as.numeric(format(d, format = "%w", tz = tz))
-    
-    if (w == 0) {
-        d <- d - 2
-    } else if (w == 6) {
-        d <- d - 1
-    } else {
-        d <- d
-    }
-    w <- as.numeric(format(d, format = "%w", tz = tz))
-    
-    while (n > 0) {
-        d <- d - 1
-        
-        w <- as.numeric(format(d, format = "%w", tz = tz))
-        if (w == 0) {
-            d <- d - 2
-        } else if (w == 6) {
-            d <- d - 1
-        } else {
-            d <- d
-        }
-        
-        n <- n - 1
-    }
-    
-    lwd <- as.Date(d)#format(d, format = "%Y%m%d", tz = tz)
-    return(lwd)
-}
 
 
 api_key = function(src){
@@ -646,11 +605,6 @@ ceiling2 = function(x) {
     as.numeric(paste0(z, e))
 }
 
-# is date/time class
-isdatetime = function(x) {
-    inherits(x, c("Date","POSIXlt","POSIXct","POSIXt"))
-}
-
 # chinese font by os
 chn_font_family = function() {
     switch(
@@ -659,4 +613,258 @@ chn_font_family = function() {
         Darwin = 'Hei Regular',
         NA
     )
+}
+
+
+# remove not available data
+rm_error_dat = function(datlst) {
+    # remove error symbols
+    error_symbols = names(datlst)[which(sapply(datlst, function(x) inherits(x, 'try-error')))]
+    if (length(error_symbols) > 0) {
+        warning(sprintf('The following symbols can\'t imported:\n%s', paste0(error_symbols, collapse=', ')))
+        datlst = datlst[setdiff(names(datlst), error_symbols)]
+    }
+    return(datlst)
+}
+
+# date time -----
+# check date format of from/to
+as_date = function(x) {
+    if (is.null(x) || inherits(x, 'Date')) return(x)
+    
+    x2 = sapply(
+        x, 
+        function(i) {
+            if (inherits(i, 'numeric') & nchar(i) != 8) {
+                i = as.Date(i, origin = "1970-01-01")
+            } else if (grepl("-|/",i)) {
+                i = as.Date(i)
+            } else if (nchar(i) == 8 & !grepl('[^0-9]', i)) {
+                i = as.Date(as.character(i), format="%Y%m%d")
+            }
+            return(i)
+        }
+    )
+    attributes(x2) = list(class = 'Date')
+    
+    return(x2)
+}
+check_fromto = function(fromto, type="date", shift = 0) {
+    type = check_arg(type, c("date", "time"), "date")
+    
+    # type: dates or times
+    if (inherits(fromto, "character")) {
+        if (type == 'date') {
+            fromto = as_date(fromto)
+        } else if (type != "date") {
+            fromto = as.POSIXct(paste(fromto+shift, "00:00:00"))
+        }
+    }
+    
+    return(fromto)
+}
+
+
+
+check_to = function(to, default_to = Sys.Date()) {
+    to = as_date(to)
+    default_to = as_date(default_to)
+    to = min(to, default_to)
+    return(to)
+}
+check_from = function(date_range, from, to, default_from = '1000-01-01', default_date_range = 'max') {
+    date_range = check_date_range(date_range, default = default_date_range)
+    
+    from = as_date(from)
+    to = as_date(to)
+    default_from = as_date(default_from)
+    
+    if (inherits(from, 'character') & any(from == '')) from = NULL
+    if (is.null(from)) {
+        from = lcd_rng(date_range, to)
+        if (is.null(from)) from = default_from
+    }
+    from = as_date(from)
+    from = max(from, default_from)
+    
+    # set class
+    if (inherits(to, "Date")) {
+        from = as_date(from)
+    } else {
+        from = as.POSIXct(from)
+    }
+    
+    return(from)
+}
+
+# is date/time class
+isdatetime = function(x) {
+    inherits(x, c("Date","POSIXlt","POSIXct","POSIXt"))
+}
+
+# convert date to second 
+date_to_sec = function(x=Sys.time()) {
+    datetime = as.POSIXct(as.Date(x, origin = "1970-01-01"))
+    return(trunc(as.numeric(datetime))) 
+}
+
+# date of BOP, bebinning of period
+date_bop = function(x, freq, workday = FALSE) {
+    bop_mthday = NULL
+    
+    x = as.Date(x)
+    
+    mthday = data.table(
+        m = 1:12, 
+        bop_mthday = sprintf('-%02i-01', 1:12), 
+        key = 'm'
+    )
+    
+    if (freq == 'yearly') {
+        x = as.Date(sub('-[0-9]{2}-[0-9]{2}$', '-01-01', x))
+    } else if (freq == 'quarterly') {
+        x = mthday[(quarter(x)-1)*3+1, as.Date(paste0(year(x),bop_mthday))]
+    } else if (freq == 'monthly') {
+        x = as.Date(sub('[0-9]{2}$', '01', x))
+    } else if (freq == 'weekly') {
+        x = x - wday(x) + 1
+    } else if (freq == 'daily') {
+        return(x)
+    }
+    
+    if (workday) x = lwd_num(-1, x)
+    return(x)
+}
+
+# date of EOP, end of period
+date_eop = function(x, freq, workday = FALSE) {
+    x = as.Date(x)
+    
+    if (freq == 'yearly') {
+        x = as.Date(sub('-[0-9]{2}-[0-9]{2}$', '-12-31', x))
+    } else if (freq == 'quarterly') {
+        x = date_eop(sprintf('%s-%s-01', year(x), quarter(x)*3), freq = 'monthly')
+    } else if (freq == 'monthly') {
+        x = date_bop(date_bop(x, freq='monthly') + 45, freq='monthly') - 1
+    } else if (freq == 'weekly') {
+        x = x - wday(x) + 7
+    } else if (freq == 'daily') {
+        return(x)
+    }
+    
+    if (workday) x = lwd_num(1, x)
+    return(x)
+}
+
+
+
+
+# extract table from html via xml2 package
+# @import data.table
+# xml_table = function(wb, num=NULL, sup_rm=NULL, attr=NULL, header=FALSE) {
+#     doc0 = xml_find_all(wb, paste0("//table",attr)) # attr = '[@cellpadding="2"]'
+#     if (!is.null(num)) doc0 = doc0[num]
+#     
+#     doc = lapply(
+#         doc0,
+#         function(x) xml_text(xml_find_all(x, ".//tr"))
+#     )
+#     
+#     dt = lapply(doc, function(x) {
+#         if (!is.null(sup_rm)) x = gsub(sup_rm, "", x)
+#         
+#         dat = data.table(x = x)[, tstrsplit(x, "[\n\t\r]+")]
+#         if (header) {
+#             dat = setnames(dat[-1], as.character(dat[1]))
+#         }
+#         return(dat)
+#     })
+#     
+#     return(dt)
+# }
+
+# last calendar day by xtd (ytd/qtd/mtd)
+lcd_rng_xtd = function(date_range, to) {
+    if (inherits(to, 'character')) to = as.Date(to)
+    to_year = year(to)
+    to_quarter = quarter(to)
+    to_month = month(to)
+    
+    if (date_range == 'ytd') {
+        from = paste(to_year, "01", "01", sep="/")
+    } else if (date_range == 'qtd') {
+        from = paste(to_year, to_quarter*3-2, "01", sep="/") 
+    } else if (date_range == 'mtd') {
+        from = paste(to_year, to_month, "01", sep="/")
+    }
+    
+    return(as.Date(from))
+}
+lcd_rng_xm = function(date_range, to) {
+    if (inherits(to, 'character')) to = as.Date(to)
+    to_year = year(to)
+    to_month = month(to)
+    to_day = mday(to)
+    
+    xmonth_range = as.integer(sub("m","",date_range))
+    
+    if (to_month > xmonth_range) {
+        from = paste(to_year, to_month-xmonth_range, to_day, sep="/")
+    } else {
+        from = paste(to_year - (floor(xmonth_range/12)+1), to_month + 12 - xmonth_range %% 12, to_day, sep="/")
+    }
+    
+    return(as.Date(from))
+}
+# last calendar day by date_range
+lcd_rng = function(date_range, to = Sys.Date()) {
+    from = NULL
+    if (grepl("[yqm]td", date_range)) {
+        from = lcd_rng_xtd(date_range, to)
+    } else if (grepl("[1-9][0-9]*d", date_range)) {
+        from = to - as.integer(sub("d","",date_range))
+    } else if (grepl("[1-9][0-9]*w", date_range)) {
+        from = to - as.integer(sub("w","",date_range))*7
+    } else if (grepl("[1-9][0-9]*m", date_range)) {
+        for (i in c(0, 1, -1, 2, -2)) {
+            from = try(lcd_rng_xm(date_range, to+i), silent = TRUE)
+            if (!inherits(from, 'try-error')) {
+                if (i != 0) from = from - i/abs(i)
+                break
+            }
+        }
+    } else if (grepl("[1-9][0-9]*y", date_range)) {
+        year_from = year(to) - as.integer(sub("y","",date_range))
+        from = sub("^[0-9]{4}", year_from, to)
+    }
+    return(from)
+}
+
+# #' last workday date
+# #' 
+# #' @param n A number.
+# #' @param d Current date in the format "%Y%m%d"
+# #' @return The date which is n days before current date d
+# #' @examples
+# #' lwd(1)
+# #' lwd(3, "20160101")
+# #' 
+lwd_num <- function(n, to = Sys.Date()) {
+    ft = NULL
+    # , tz = Sys.timezone()
+    to = as.Date(to)
+
+    n2 = abs(n) + ceiling(abs(n)/7)*2
+    
+    from = sapply(
+        to, 
+        function(x) {
+            data.table(
+                ft = seq(x, x - sign(n) * n2,  by = -sign(n))
+            )[wday(ft) %in% 2:6
+            ][abs(n), as.character(ft)]
+        }
+    )
+
+    return(as.Date(from))
 }

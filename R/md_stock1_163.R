@@ -1,170 +1,6 @@
-
-#' @import data.table 
-#' @importFrom jsonlite fromJSON
-#' @importFrom stringi stri_unescape_unicode
-md_stock_spotall_163 = function(symbol = c('a','index'), only_symbol = FALSE, show_tags = FALSE, to_sysdata=FALSE, ...) {
-  prov = tags = market = exchange = time = . = submarket = region = board = name = mkt = indu = sec = NULL
-    
-  fun_stock_163 = function(urli, mkt) {
-    code = symbol = exchange = . = name = high = low = price = yestclose = updown = percent = hs = volume = turnover = mcap = tcap = pe = mfsum = net_income = revenue = plate_ids = time = NULL
-    # stock
-    # c('code', 'five_minute' 'high', 'hs', 'lb', 'low', 'mcap', 'mfratio', 'mfsum', 'name', 'open', 'pe', 'percent', 'plate_ids', 'price', 'sname', 'symbol', 'tcap', 'turnover', 'updown', 'volume', 'wb', 'yestclose', 'zf', 'no', 'announmt', 'uvsnews')
-    # index
-    # c('code', 'high', 'low', 'name', 'open' 'percent', 'price', 'symbol', 'time', 'turnover' 'updown', 'volume', 'yestclose', 'no', 'zhenfu') 
-    data_date = md_stock_spot_tx('^000001')$date
-    jsonDat = fromJSON(urli)
-    
-    jsonDF = jsonDat$list
-    if (mkt == 'stock') {
-      jsonDF$net_income = jsonDF$MFRATIO$MFRATIO2
-      jsonDF$revenue = jsonDF$MFRATIO$MFRATIO10
-      jsonDF[,c('MFRATIO', 'UVSNEWS','ANNOUNMT','NO')] = NULL 
-      names(jsonDF) = tolower(names(jsonDF))
-      
-      jsonDF = setDT(jsonDF)[,`:=`(
-        date = data_date, #as.Date(substr(jsonDat$time,1,10)), 
-        time = jsonDat$time#,
-        #strptime(jsonDat$time, '%Y-%m-%d %H:%M:%S', tz = 'Asia/Shanghai')
-      )][, .(symbol, name, date, open, high, low, close=price, close_prev=yestclose, change=updown, change_pct=percent*100, volume, amount=turnover, turnover=hs*100, cap_market=mcap, cap_total=tcap, pe_last=pe, eps=mfsum, net_income, revenue, plate_ids, time=as.POSIXct(time))
-      ][,`:=`(
-        province = sub('.*(dy\\d+).*', '\\1', plate_ids),
-        plate_ids = sub('dy\\d+','',plate_ids)
-      )][,`:=`(
-        sector = sub('.*((hy\\d{3}0{3})|hy012001).*', '\\1', plate_ids),
-        industry = sub('.*(hy\\d+).*', '\\1', sub('hy\\d{3}0{3}','',plate_ids))
-      )]
-      
-    } else if (mkt == 'index') {
-      names(jsonDF) = tolower(names(jsonDF))
-      
-      jsonDF = setDT(jsonDF)[,`:=`(
-        date = data_date#as.Date(substr(jsonDat$time,1,10))
-      )][, .(symbol, name, date, open, high, low, close=price, close_prev=yestclose, change=updown, change_pct=percent*100, volume=volume/100, amount=turnover, time=as.POSIXct(time))]
-    }
-    
-    return(jsonDF[, `:=`(market = mkt, region = 'cn')])
-  }
-  
-  urls_163 = list(
-    a = 'http://quotes.money.163.com/hs/service/diyrank.php?host=http%3A%2F%2Fquotes.money.163.com%2Fhs%2Fservice%2Fdiyrank.php&page=0&query=STYPE%3AEQA&fields=NO%2CSYMBOL%2CNAME%2CPLATE_IDS%2CPRICE%2CPERCENT%2CUPDOWN%2CFIVE_MINUTE%2COPEN%2CYESTCLOSE%2CHIGH%2CLOW%2CVOLUME%2CTURNOVER%2CHS%2CLB%2CWB%2CZF%2CPE%2CMCAP%2CTCAP%2CMFSUM%2CMFRATIO.MFRATIO2%2CMFRATIO.MFRATIO10%2CSNAME%2CCODE%2CANNOUNMT%2CUVSNEWS&sort=CODE&order=desc&count=100000&type=query', 
-    b = 'http://quotes.money.163.com/hs/service/diyrank.php?host=http%3A%2F%2Fquotes.money.163.com%2Fhs%2Fservice%2Fdiyrank.php&page=0&query=STYPE%3AEQB&fields=NO%2CSYMBOL%2CNAME%2CPLATE_IDS%2CPRICE%2CPERCENT%2CUPDOWN%2CFIVE_MINUTE%2COPEN%2CYESTCLOSE%2CHIGH%2CLOW%2CVOLUME%2CTURNOVER%2CHS%2CLB%2CWB%2CZF%2CPE%2CMCAP%2CTCAP%2CMFSUM%2CMFRATIO.MFRATIO2%2CMFRATIO.MFRATIO10%2CSNAME%2CCODE%2CANNOUNMT%2CUVSNEWS&sort=PERCENT&order=desc&count=100000&type=query',
-    index = 'http://quotes.money.163.com/hs/service/hsindexrank.php?host=/hs/service/hsindexrank.php&page=0&query=IS_INDEX:true;EXCHANGE:CNSESH&fields=no,TIME,SYMBOL,NAME,PRICE,UPDOWN,PERCENT,zhenfu,VOLUME,TURNOVER,YESTCLOSE,OPEN,HIGH,LOW&sort=SYMBOL&order=asc&count=10000&type=query',
-    index = 'http://quotes.money.163.com/hs/service/hsindexrank.php?host=/hs/service/hsindexrank.php&page=0&query=IS_INDEX:true;EXCHANGE:CNSESZ&fields=no,TIME,SYMBOL,NAME,PRICE,UPDOWN,PERCENT,zhenfu,VOLUME,TURNOVER,YESTCLOSE,OPEN,HIGH,LOW&sort=SYMBOL&order=asc&count=10000&type=query'
-  )
-  idx = which(names(urls_163) %in% symbol) #unlist(strsplit(symbol,','))
-  
-  df_stock_cn = try(
-    rbindlist(
-      mapply(fun_stock_163, urls_163[idx], c('stock','stock','index','index')[idx], SIMPLIFY = FALSE), 
-      fill = TRUE
-    ), 
-    silent = TRUE
-  )#, idcol = 'mkt')#[mkt %in% c('a','b'), mkt := 'stock']
-  if (!inherits(df_stock_cn, 'try-error') & 'fund' %in% symbol) df_stock_cn = rbind(df_stock_cn, md_fund_spotall_163(), fill=TRUE)
-  
-  # date time of download
-  datetime = gsub('[^(0-9)]','',df_stock_cn[1,time])
-  # if (df_stock_cn[1,time] < as.POSIXct(paste(df_stock_cn[1,date], '15:00:00'))) 
-  #   cat('The close price is spot price at', as.character(datetime), '\n')
-
-  # create/export sysdata.rda 
-  if (to_sysdata) return(df_stock_cn)
-  # create/export symbol only or tags
-  if (only_symbol || show_tags) {
-    if (inherits(df_stock_cn, 'try-error')) df_stock_cn = setDT(copy(symbol_stock_163))
-    
-    df_stock_cn = symbol_163_format(df_stock_cn)
-    if ('prov' %in% names(df_stock_cn)) df_stock_cn = df_stock_cn[is.na(prov), prov := stri_unescape_unicode('\\u91cd\\u5e86')]
-    
-    if (only_symbol & show_tags) {
-      df_stock_cn = df_stock_cn[
-        , .(market, submarket, region, exchange, board, symbol, name, prov, sec, indu)
-        ][order(-market, exchange, symbol)]
-    } else if (only_symbol) {
-      df_stock_cn = df_stock_cn[
-        , .(market, submarket, region, exchange, board, symbol, name)
-        ][order(-market, exchange, symbol)]
-    }
-  } else {
-    if (!identical(symbol, 'index')) {
-      cols_rm = intersect(names(df_stock_cn), c('eps', 'net_income', 'revenue'))
-      if (length(cols_rm)>0) df_stock_cn = df_stock_cn[, (cols_rm) := NULL]
-    }
-  }
-  
-  df = df_stock_cn[,unit := 'CNY'][, symbol := check_symbol_for_yahoo(symbol, market)]#[, mkt := NULL][]
-  
-  cols_rm = intersect(names(df), c('sector', 'industry', 'province', 'plate_ids', 'region')) # , 'close_prev', 
-  if (length(cols_rm)>0) df = df[, (cols_rm) := NULL]
-  return(df)
-}
-
-
-# query spot data from tx
-# http://api.money.126.net/data/feed/1000001,money.api
-# hq.sinajs.cn/list=sz150206
-# http://qt.gtimg.cn/q=sz000001
-md_stock_spot_tx = function(symbol1, only_syb_nam = FALSE, ...) {
-  V1=V2=doc=.=symbol=name=high=low=close_prev=change=change_pct=volume=amount=turnover=cap_market=cap_total=pb=pe_last=pe_trailing=pe_forward=NULL
-  
-  syb = paste0(check_symbol_for_tx(symbol1), collapse=',')
-  dt = try(readLines(sprintf('http://qt.gtimg.cn/q=%s', syb)), silent = TRUE)
-  if (inherits(dt, 'try-error')) readLines(sprintf('http://web.sqt.gtimg.cn/q=%s', syb))
-  
-  dt = data.table(
-    doc = dt
-  )[, doc := iconv(doc, 'GB18030', 'UTF-8')
-  ][, doc := sub('.+=\"\\d+~(.+)\".+', '\\1', doc)
-  ][, tstrsplit(doc, '~')
-  ][, V1 := gsub('\\s', '', V1)]
-  
-  if (only_syb_nam) {
-    return(dt[,.(symbol = check_symbol_for_yahoo(symbol1), name = V1)])
-  }
-  
-  colnames_en = c('name', 'symbol', 'close', 'close_prev', 'open',
-                  'volume', 'buy', 'sell', 
-                  'bid1', 'bid1_volume', 'bid2', 'bid2_volume', 'bid3', 'bid3_volume', 'bid4', 'bid4_volume', 'bid5', 'bid5_volume',
-                  'ask1', 'ask1_volume', 'ask2', 'ask2_volume', 'ask3', 'ask3_volume', 'ask4', 'ask4_volume', 'ask5', 'ask5_volume',
-                  'last_trade', 'date', 'change', 'change_pct', 'high', 'low', 
-                  '', 'volume', 'amount', 'turnover', 
-                  'pe_trailing', '', 'high', 'low', '', 'cap_market', 'cap_total', 'pb', '', '', '', '', 'average', 'pe_forward', 'pe_last' )
-  if (ncol(dt) <= 53) {
-    colnames_en = colnames_en[seq_len(ncol(dt))]
-  } else {
-    colnames_en = c(colnames_en, rep('', ncol(dt)-53))
-  }
-  setnames(dt, colnames_en)
-  
-  num_cols = c(
-    'open', 'high', 'low', 'close', 'close_prev', 'change', 'change_pct', 'volume', 'amount', 'turnover', 'cap_market', 'cap_total', 'pb', 'pe_last', 'pe_trailing', 'pe_forward'
-  )
-  dt = dt[,.(
-    symbol, name, date, open, high, low, close, close_prev, change, change_pct, volume, amount, turnover, cap_market, cap_total, pb, pe_last, pe_trailing, pe_forward#, 
-    #buy, sell, 
-    #bid1, bid1_volume, bid2, bid2_volume, bid3, bid3_volume, bid4, bid4_volume, bid5, bid5_volume, 
-    #ask1, ask1_volume, ask2, ask2_volume, ask3, ask3_volume, ask4, ask4_volume, ask5, ask5_volume
-    )][, (num_cols) := lapply(.SD, as.numeric), .SDcols= num_cols
-     ][, `:=`(
-       symbol = check_symbol_for_yahoo(symbol1),
-       volume = volume,
-       amount = amount*10000,
-       cap_market = cap_market*10^8, 
-       cap_total = cap_total*10^8,
-       time = as.POSIXct(date, format='%Y%m%d%H%M%S', tz='Asia/Shanghai'),
-       date = as.Date(date, format='%Y%m%d%H%M%S')
-     )]
-  
-  # if (dt[1,time] < as.POSIXct(paste(dt[1,date], '15:00:00')))
-  #   cat('The close is the spot price at', dt[1, as.character(time)], '\n')
-  
-  return(dt[, `:=`(unit = 'CNY')])
-}
-
-
-
-md_stock_info1_163 = function(symbol1, str_income_hist = FALSE, ...) {
-  . = N = V1 = X1 = X2 = X3 = X4 = income_by = mkt = rd = rid = NULL
+# stock info ------
+md_stock1_info_163 = function(symbol1, rev_hist = FALSE, ...) {
+  . = N = V1 = V2 = V3 = V4 = V5 = V6 = X1 = X2 = X3 = X4 = revenue_by = mkt = report_date = rid = NULL
   
   # symbol1 = '600036'
   # http://quotes.money.163.com/f10/gszl_600036.html#01f01
@@ -173,72 +9,80 @@ md_stock_info1_163 = function(symbol1, str_income_hist = FALSE, ...) {
   # http://quotes.money.163.com/service/gszl_600036.html?type=dy
   
   # skip index
-  if (check_symbol_cn(symbol1)[, mkt == 'index' || is.na(mkt)]) return(NULL)
+  chk_syb = check_symbol_cn(symbol1)
+  symbol1 = chk_syb$syb
+  if (chk_syb[, mkt == 'index' || is.na(mkt)]) return(NULL)
   # symbol1 = '000001'
-  stk_price = md_stock_spot_tx(symbol1, only_syb_nam=TRUE)
+  stk_price = md_stock_real_tx(symbol1, only_syb_nam=TRUE)
   # columns
-  income_strcols = c('income', 'cost', 'profit', 'gross_margin', 'profit_proportion')
-  employee_strcols = c('number', 'proportion')
+  rev_str_cols = c('revenue', 'cost', 'profit', 'gross_margin', 'profit_proportion')
+  staff_str_cols = c('number', 'proportion')
   
-  if (str_income_hist) {
-    income_hist_preprocess = function(dat, type) {
-      income_strcols = c('income', 'cost', 'profit', 'gross_margin', 'profit_proportion')
+  if (rev_hist) {
+    revhist_preprocess = function(dat) {
+      if (is.null(dat)) return(invisible())
+      
+      rev_str_cols = c('revenue', 'cost', 'profit', 'gross_margin', 'profit_proportion')
       
       rbindlist(lapply(
-        split(income_product[
-          , rid := 0
-        ][V1 == income_product[1,1], rid := 1
-        ][, rid := cumsum(rid)][], by = 'rid'), 
+        split(
+          dat[
+            , rid := 0
+          ][V1 == dat[1,1] & V2 == dat[1,2], rid := 1
+          ][, rid := cumsum(rid)][], 
+          by = 'rid'
+        ), 
         function(x) {
-          setnames(
-            x[-c(1:2),
-            ][, report_date := x[1,5]
-            ][, income_by := type
-            ][, c(8,9,1:6)], 
-            c('report_date', 'income_by', 'variable', income_strcols)
+          cbind(
+            stk_price, 
+            setnames(
+              x[, report_date := x[1,5]][-c(1:2)][, .(report_date, V1, V2, V3, V4, V5, V6)], 
+              c('report_date', 'variable', rev_str_cols)
+            )
           )
         }
-      ))[, (income_strcols) := lapply(.SD, function(x) {
-        as.numeric(gsub(',|\\s|-|%', '', x))
-      }), .SDcols = income_strcols][]
+      ))[, (rev_str_cols) := lapply(.SD, function(x) {
+        as.numeric(gsub(',|\\s|(--)|%', '', x))
+      }), .SDcols = rev_str_cols][]
     }
     
-    income_product = load_read_csv(
+    rev_product = load_read_csv(
       sprintf('http://quotes.money.163.com/service/gszl_%s.html?type=cp', symbol1), 
       encode = 'GBK', csv_header = FALSE
     )
-    income_product2 = income_hist_preprocess(income_product, type = 'product')
     
-    
-    income_industry = load_read_csv(
+    rev_industry = load_read_csv(
       sprintf('http://quotes.money.163.com/service/gszl_%s.html?type=hy', symbol1), 
       encode = 'GBK', csv_header = FALSE
     )
-    income_industry2 = income_hist_preprocess(income_industry, type = 'industry')
     
-    
-    income_location = load_read_csv(
+    rev_location = load_read_csv(
       sprintf('http://quotes.money.163.com/service/gszl_%s.html?type=dy', symbol1), 
       encode = 'GBK', csv_header = FALSE
     )
-    income_location2 = income_hist_preprocess(income_location, type = 'location')
     
     
-    retdat = list(str_income = cbind(
-      stk_price,
-      rbind(income_product2, income_industry2, income_location2)
-    ))
+    retdat = list(
+      revenue = rbindlist(list(
+        product = revhist_preprocess(rev_product), 
+        industry = revhist_preprocess(rev_industry),
+        location = revhist_preprocess(rev_location)
+      ), idcol = 'revenue_by')[, report_date := as.Date(report_date)][]
+    )
   } else {
     # load all tables
     datweb = read_html(sprintf(
       'http://quotes.money.163.com/f10/gszl_%s.html#01f01', 
       sub("^.*?([0-9]+).*$",'\\1', symbol1)
     ))
-    report_date = 
+    
+    rdlist = 
       data.table(
-        rd = html_text(html_nodes(datweb, 'div.report_date span'))
-      )[, report_date := sub('.*([0-9]{4}-[0-9]{2}-[0-9]{2}).*', '\\1', rd) 
-      ][,.N, by = report_date][order(-N)][1, .(report_date)] 
+        revstaff = c('product', 'industry', 'location', 'education', 'work_type'), 
+        report_date = html_text(html_nodes(datweb, 'div.report_date span'))
+      )[, report_date := substr(gsub(' *', '', report_date), 6, nchar(report_date)) ][]
+    # sub('.*([0-9]{4}-[0-9]{2}-[0-9]{2}).*', '\\1', rd) 
+    
     
     tbls = rvest::html_table(datweb, fill = TRUE, header = FALSE)
     
@@ -253,48 +97,64 @@ md_stock_info1_163 = function(symbol1, str_income_hist = FALSE, ...) {
     info = cbind(stk_price, rbindlist(list(profile=profile, ipo=ipo), idcol = 'info_type'))
     
     
-    str_income = tbls[7:9]
-    names(str_income) = c('prodcut', 'industry', 'location')
-    str_income = rbindlist(
-      lapply( str_income, function(x) setnames(x[-1,], c('variable', income_strcols)) ), 
-      idcol = 'income_by'
-    )[, (income_strcols) := lapply(.SD, function(x) {
+    str_revenue = tbls[7:9]
+    names(str_revenue) = c('product', 'industry', 'location')
+    str_revenue = rbindlist(
+      lapply( str_revenue, function(x) setnames(x[-1,], c('variable', rev_str_cols)) ), 
+      idcol = 'revenue_by'
+    )[, (rev_str_cols) := lapply(.SD, function(x) {
       as.numeric(gsub(',|\\s|-|%', '', x))
-    }), .SDcols = income_strcols][]
-    str_income = cbind(stk_price, report_date, str_income)
+    }), .SDcols = rev_str_cols][]
     
-    str_employee = tbls[10:11]
-    names(str_employee) = c('education', 'work_type')
-    str_employee = rbindlist(
-      lapply(str_employee, function(x) setnames(x[-1,], c('variable', employee_strcols))), 
-      idcol = 'employee_by'
-    )[, (employee_strcols) := lapply(.SD, function(x) {
+    str_revenue = merge(
+      cbind(stk_price, setnames(rdlist[1:3], 'revstaff', 'revenue_by')), 
+      str_revenue, by = 'revenue_by', all.y = TRUE
+    )
+    
+    
+    str_staff = tbls[10:11]
+    names(str_staff) = c('education', 'work_type')
+    str_staff = rbindlist(
+      lapply(str_staff, function(x) setnames(x[-1,], c('variable', staff_str_cols))), 
+      idcol = 'staff_by'
+    )[, (staff_str_cols) := lapply(.SD, function(x) {
       as.numeric(gsub('\\s|%', '', x))
-    }), .SDcols = employee_strcols]
-    str_employee = cbind(stk_price, report_date, str_employee)
+    }), .SDcols = staff_str_cols]
+    
+    str_staff = merge(
+      cbind(stk_price, setnames(rdlist[4:5], 'revstaff', 'staff_by')), 
+      str_staff, by = 'staff_by', all.y = TRUE
+    )
+    
     
     retdat = list(
       info = info, 
-      str_income = str_income, 
-      str_employee = str_employee
+      revenue = str_revenue[report_date != '--'][, report_date := as.Date(report_date)], 
+      staff = str_staff[, report_date := as.Date(report_date)]
     )
   }
   
   return(retdat)
 }
 
+
+# stock history ------
 #' @import data.table
 #' @importFrom readr read_csv locale col_date col_character col_double col_integer
-md_stock_hist1_163 = function(symbol1, from='1900-01-01', to=Sys.Date(), zero_rm=TRUE, ...) {
-  V1 = name = change_pct = symbol = NULL
+md_stock1_history_163 = function(symbol1, from='1900-01-01', to=Sys.Date(), zero_rm=TRUE, ...) {
+  V1 = name = change_pct = symbol = close_prev = NULL
   # http://quotes.money.163.com/service/chddata.html?code=0000001&start=19901219&end=20180615&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;VOTURNOVER;VATURNOVER
   # http://quotes.money.163.com/service/chddata.html?code=1399001&start=19910403&end=20180615&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;VOTURNOVER;VATURNOVER
   # https://query1.finance.yahoo.com/v7/finance/download/^SSEC?period1=1526631424&period2=1529309824&interval=1d&events=history&crumb=mO08ZCtWRMI
   
   # 'http://api.finance.ifeng.com/akmonthly/?code=sh600000&type=last'
   # {'D': 'akdaily', 'W': 'akweekly', 'M': 'akmonthly'}
-  
-  if (check_symbol_cn(symbol1)$mkt == 'fund') return(md_fund_hist1_163(symbol1, from, to))
+  chk_syb1 = check_symbol_cn(symbol1)
+  if (chk_syb1$mkt %in% 'fund') {
+      return(md_fund1_history_163(symbol1, from, to))
+  } else if (!(chk_syb1$exchg_code %in% c('sz', 'ss'))) {
+      return(md_stock1_history_eastmoney(symbol1, from, to, ...))
+  }
   
   # symbol
   syb = check_symbol_for_163(symbol1) 
@@ -322,11 +182,12 @@ md_stock_hist1_163 = function(symbol1, from='1900-01-01', to=Sys.Date(), zero_rm
   setnames(dt, cols_name)
   setkeyv(dt, 'date')
   
-  # if (max(dt[['date']]) < lwd()) dt = rbindlist(list(dt, md_stock_spot1_tx(symbol1)[,names(dt), with=FALSE]), fill = FALSE)
+  # if (max(dt[['date']]) < lwd()) dt = rbindlist(list(dt, md_stock_real1_tx(symbol1)[,names(dt), with=FALSE]), fill = FALSE)
   dt = dt[, symbol := check_symbol_for_yahoo(symbol1)][, (cols_name[c(2,3,1,4:15)]), with=FALSE]
   # if (max(dt[['date']]) < lwd()) dt = unique(dt, by='date')
   
   # fill zeros in dt
+  dt[close_prev == 0, close_prev := NA]
   if (zero_rm) {
     dt = dt[close != 0]
   } else {
@@ -340,12 +201,12 @@ md_stock_hist1_163 = function(symbol1, from='1900-01-01', to=Sys.Date(), zero_rm
   if (chk_syb == dt[1,symbol] && nrow(dt)>0) {
     valuation = list(...)[['valuation']]
     if (is.null(valuation)) valuation = FALSE
-    if (valuation) dt = md_stock_pe1_163(dt)
+    if (valuation) dt = md_stock1_pe_163(dt)
     
     # adjust = list(...)[['adjust']]
     # if (is.null(adjust)) adjust = 'split'
     # adjust = ifelse(adjust, 'dividend', 'split') 
-    dt = md_stock_adjust1(dt, source = '163', adjust = list(...)[['adjust']])
+    dt = md_stock_adj1ohlc(dt, source = '163', adjust = list(...)[['adjust']])
   }
   
   # create unit/name columns
@@ -355,7 +216,7 @@ md_stock_hist1_163 = function(symbol1, from='1900-01-01', to=Sys.Date(), zero_rm
 }
 
 # valuation ratios pe, pb, ps, pcf
-md_stock_pe1_163 = function(dat) {
+md_stock1_pe_163 = function(dat) {
   symbol=V1=var_id=value=fs_month_diff=REV_Q=REV=REV_Y=NP_Q=NP=NP_Y=fs_month=NP_Dec=NP_LY=date2=cap_total=BV=NIDCash=NULL
   
   
@@ -419,13 +280,13 @@ md_stock_pe1_163 = function(dat) {
 
 # dividends
 #' @importFrom stringi stri_isempty
-md_stock_divsplit1_163 = function(symbol1, from=NULL, to=NULL, ret = c('div', 'spl', 'rig')) {
+md_stock1_divsplit_163 = function(symbol1, from=NULL, to=NULL, ret = c('div', 'spl', 'rig')) {
   name = symbol = date2 = date1 = date0 = fenhong = . = songgu = spl = zhuanzeng = new_issues = old_issues = issue_price = issue_rate = splits = dividends = mkt = NULL
   
   # skip index
   if (check_symbol_cn(symbol1)[, mkt == 'index' || is.na(mkt)]) return(NULL)
   # symbol1 = '000001'
-  stk_price = md_stock_spot_tx(symbol1, only_syb_nam=TRUE)
+  stk_price = md_stock_real_tx(symbol1, only_syb_nam=TRUE)
   # return dts
   div_spl = list()
   
@@ -525,19 +386,19 @@ md_stock_163 = function(symbol, from='1900-01-01', to=Sys.Date(), print_step=1L,
   # if (!('adjust' %in% names(arg_lst))) arg_lst[['adjust']] = 'split'
   
   # query data
-  if (type == 'spot') {
-    fuc = 'md_stock_spot_tx'
-    if (length(intersect(symbol, c('a','b','index', 'fund'))) > 0) fuc = 'md_stock_spotall_163'
+  if (type == 'real') {
+    fuc = 'md_stock_real_tx'
+    if (length(intersect(symbol, c('a','b','index', 'fund'))) > 0) fuc = 'md_stockall_real_163'
     dat_list <- try(do.call(fuc, args=list(symbol=symbol, ...)), silent = TRUE)
       
   }  else if (type == 'history') {
-    dat_list = load_dat_loop(symbol, 'md_stock_hist1_163', args = c(list(from = from, to = to, zero_rm = zero_rm), arg_lst), print_step=print_step)
+    dat_list = load_dat_loop(symbol, 'md_stock1_history_163', args = list(from = from, to = to, zero_rm = zero_rm, ...), print_step=print_step)
     
   } else if (type == 'adjfactor') (
-    dat_list = load_dat_loop(symbol, 'md_stock_divsplit1_163', args = list(from = from, to = to), print_step=print_step)
+    dat_list = load_dat_loop(symbol, 'md_stock1_divsplit_163', args = list(from = from, to = to), print_step=print_step)
     
   ) else if (type == 'info') {
-    dat_list = load_dat_loop(symbol, 'md_stock_info1_163', args = list(...), print_step=print_step)
+    dat_list = load_dat_loop(symbol, 'md_stock1_info_163', args = list(...), print_step=print_step)
   }
   
   rmcols_func = function(x) {
@@ -548,7 +409,7 @@ md_stock_163 = function(symbol, from='1900-01-01', to=Sys.Date(), print_step=1L,
     if ('name' %in% names(x)) x = x[, name := gsub('\\s', '', name)]
     return(x)
   }
-  if (type %in% c('history', 'spot')) {
+  if (type %in% c('history', 'real')) {
     if (inherits(dat_list, 'list')) {
       dat_list = lapply(dat_list, rmcols_func)
     } else if (inherits(dat_list, 'data.frame')) {
@@ -560,8 +421,8 @@ md_stock_163 = function(symbol, from='1900-01-01', to=Sys.Date(), print_step=1L,
 }
 
 
-# fund data from 163
-md_fund_spotall_163 = function() {
+# fund real ------
+md_fundall_real_163 = function() {
   . = fund = high = low = name = price = symbol = time = turnover = volume = yestclose = NULL
   
   dat_lst = lapply(list(
@@ -586,11 +447,13 @@ md_fund_spotall_163 = function() {
   dat_df = rbindlist(dat_lst, idcol = 'fund')
   setnames(dat_df, tolower(names(dat_df)))
   
-  dat_df = dat_df[, .(symbol = check_symbol_for_yahoo(symbol), date = md_stock_spot_tx('^000001')$date, name, open, high, low, close = price, close_prev = yestclose, change_pct = percent*100, volume, amount = turnover, market = fund, unit = 'CNY')] # change=updown, sname, 
+  dat_df = dat_df[, .(symbol = check_symbol_for_yahoo(symbol), date = md_stock_real_tx('^000001')$date, name, open, high, low, close = price, close_prev = yestclose, change_pct = percent*100, volume, amount = turnover, market = fund, unit = 'CNY')] # change=updown, sname, 
   
   return(dat_df)
 }
-md_fund_hist1_163 = function(symbol1, from='1900-01-01', to=Sys.Date()) {
+
+# fund history ------
+md_fund1_history_163 = function(symbol1, from='1900-01-01', to=Sys.Date()) {
   . = amount = change_pct = discount_pct = high = low = mkt = turnover = volume = NULL
   
   # url = sprintf('http://api.finance.ifeng.com/akdaily/?code=%s&type=last', syb1)
@@ -652,11 +515,10 @@ md_fund_hist1_163 = function(symbol1, from='1900-01-01', to=Sys.Date()) {
   dat = merge(dat_tx[,.(date, open, high, low)], dat_1632, by = 'date', all.y=TRUE)
   dat = cbind(data.table(
     symbol = check_symbol_for_yahoo(symbol1), 
-    name = md_stock_spot_tx(symbol1, only_syb_nam = T)$name
+    name = md_stock_real_tx(symbol1, only_syb_nam = T)$name
   ), dat)[, unit := 'CNY']
   
   return(dat)
 }
 # szse fund: 15, 16, 18
 # sse fund: 50, 51, 52
-

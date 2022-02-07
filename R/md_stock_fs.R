@@ -16,7 +16,7 @@ fs_type1_cn = function(row_type, symbol1) {
     
     # load data from 163
     fr_url = sprintf(fr_163[row_type,urls], symbol1)
-    dat = suppressWarnings(read_csv(file=fr_url, col_types=cols(.default = "c"), locale = locale(encoding = "GBK"), na = c("", "NA", "--")))
+    dat = suppressWarnings(read_csv(file=fr_url, col_types=cols(.default = "c"), locale = locale(encoding = "GBK"), na = c("", "NA", "--"), name_repair = "minimal"))
     setnames(setDT(dat), c("var_name", names(dat)[-1]))
     
     # melt dataframe
@@ -50,7 +50,7 @@ md_stock1_fs_cn = function(symbol1, type=NULL, print_step=0L, ...) {
     if (any(type == 'dupont')) return(fs_dupont_cn(symbol1))
     
     # symbol name
-    sn = md_stock_spot_tx(symbol1, only_syb_nam = TRUE)
+    sn = md_stock_real_tx(symbol1, only_syb_nam = TRUE)
     
     # type
     fs_type_163 = setDT(copy(financial_statements_163))
@@ -86,7 +86,7 @@ fs_dupont_cn = function(symbol1=NULL, ...) {
     # main financial indicators
     dat = fs_type1_cn('fi0_main', symbol1)
     # symbol name
-    sn = md_stock_spot_tx(symbol1, only_syb_nam = TRUE)
+    sn = md_stock_real_tx(symbol1, only_syb_nam = TRUE)
   }
   
   mfi2 = dcast(

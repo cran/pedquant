@@ -1,3 +1,9 @@
+# pedquant 0.1.8
+
+* fixed bugs in functions of md_stock, md_future
+* modified multiple functions such as md_stock_adjust, pq_performance, pq_portfolio and etc.
+* rename pq_to_freq to pq_freq
+
 # pedquant 0.1.7
 
 * fixed mutual bugs in the functions such as get_fromto, md_stock_divsplit1_163, md_stock_symbol etc.
@@ -7,7 +13,7 @@
 # pedquant 0.1.6
 
 * pq_plot function supports to create interactive graphics based on plotly package
-* modified the selection of type argument in md_stock_finansials function
+* modified the selection of type argument in md_stock_financials function
 
 
 # pedquant 0.1.5
