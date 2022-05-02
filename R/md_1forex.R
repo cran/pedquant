@@ -196,7 +196,7 @@ md_forex1_oanda = function(symbol, from, to) {
 }
 # query forex from FRED
 md_forex1_fred = function(syb, from, to) {
-    symbol = symbol_fred = . = name = value = geo = NULL
+    symbol = symbol_fred = . = name = value = geo = unit = NULL
     
     forex_symbol_fred = func_forex_symbol()
     syb_fred = forex_symbol_fred[symbol == tolower(syb), symbol_fred]
@@ -251,11 +251,8 @@ md_forex1_fxfupan = function(syb) {
 #' @import data.table 
 #' @export
 md_forex = function(symbol=NULL, type = 'history', date_range = '3y', from=NULL, to=Sys.Date(), print_step=1L, ...) {
-    . = name = NULL
     
     # symbol
-    forex_symbol_fred = func_forex_symbol()
-    if (is.null(symbol)) syb = select_rows_df(forex_symbol_fred[,.(symbol,name)], column='symbol')[,symbol]
     syb = tolower(symbol)
     ## from/to
     to = check_to(to)
@@ -267,7 +264,7 @@ md_forex = function(symbol=NULL, type = 'history', date_range = '3y', from=NULL,
     if (type == 'history') {
         # load data by symbol
         dat_list = load_dat_loop(
-            syb, 'md_forex1_fred', 
+            syb, 'md_stooq1', 
             args = list(from = from, to = to, ...), 
             print_step=print_step, ...)
         dat_list = rm_error_dat(dat_list)

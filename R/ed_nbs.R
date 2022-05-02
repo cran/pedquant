@@ -139,6 +139,7 @@ ed_nbs_symbol = function(symbol=NULL, geo_type=NULL, freq=NULL, eng=FALSE) {
 #' city = ed_nbs_subregion(geo_type = 'c', eng = TRUE) 
 #' }
 #' @importFrom jsonlite fromJSON 
+#' @importFrom httr set_config
 #' @export
 ed_nbs_subregion = function(geo_type=NULL, eng=FALSE) {
   dim_region = dim_geo_type = dim_sta_db = . = code = name = NULL
@@ -169,7 +170,11 @@ ed_nbs_subregion = function(geo_type=NULL, eng=FALSE) {
       # dfwds=paste0('[{"wdcode":"sj","valuecode":"LAST10"}]'),
       k1=time_sec
     )
-    req = GET(nbs_url, query=query_list)
+    req = try(GET(nbs_url, query=query_list), silent = TRUE)
+    if (inherits(req, 'try-error')) {
+        set_config(config(ssl_verifypeer = 0L))
+        req = GET(nbs_url, query=query_list)
+    }
     jsondat = fromJSON(content(req, "text", encoding="utf-8"))
     return(jsondat)
   }
@@ -297,7 +302,7 @@ nbs_jsondat_format = function(jsondat) {
 
 #' query NBS economic data
 #' 
-#' \code{ed_nbs} provides an interface to query economic data from National Bureau of Statistics of China (NBS, http://data.stats.gov.cn/).
+#' \code{ed_nbs} provides an interface to query economic data from National Bureau of Statistics of China (NBS, \url{http://www.stats.gov.cn/}).
 #' 
 #' @param symbol symbols of NBS indicators. It is available via \code{ed_nbs_symbol}. Default is NULL.
 #' @param freq the frequency of NBS indicators, including 'monthly', 'quarterly', 'yearly'. Default is NULL.

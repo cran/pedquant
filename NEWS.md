@@ -1,3 +1,8 @@
+# pedquant 0.1.9
+
+* fixed bug in md_stock function for querying sse/szse fund data
+* added a new function pq_opr to perform arithmetic operation
+
 # pedquant 0.1.8
 
 * fixed bugs in functions of md_stock, md_future
