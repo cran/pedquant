@@ -1,3 +1,9 @@
+# pedquant 0.2.0
+
+* fixed various bugs
+* added functions of crossover and interval operators
+* added a depended package xefun 
+
 # pedquant 0.1.9
 
 * fixed bug in md_stock function for querying sse/szse fund data
@@ -44,7 +50,7 @@
 
 * Added functions of pq_portfolio and pq_backtest
 * Fixed multiple bugs in pq_plot.
-# Fixed a bug for functions to query data from NBS, which cant load JS data.
+* Fixed a bug for functions to query data from NBS, which cant load JS data.
 
 # pedquant 0.1.0
 

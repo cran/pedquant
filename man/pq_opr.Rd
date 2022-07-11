@@ -4,27 +4,29 @@
 \alias{pq_opr}
 \title{dataframe operation}
 \usage{
-pq_opr(dt, opr, x = "date", y = "close", by = "symbol", rm_na = FALSE)
+pq_opr(dt, opr, x = "close", rm_na = FALSE, ...)
 }
 \arguments{
 \item{dt}{a list/dataframe of time series datasets.}
 
 \item{opr}{operation string.}
 
-\item{x}{the date column name, defaults to date.}
-
-\item{y}{the numeric column names, defaults to close.}
-
-\item{by}{the column name to specify different series, defaults to symbol.}
+\item{x}{the numeric column names, defaults to close.}
 
 \item{rm_na}{weather to remove NA values when perform arithmetic.}
+
+\item{...}{additional parameters.}
 }
 \description{
 It performs arithmetic operation on numeric columns on multiple series.
 }
 \examples{
 data("dt_banks")
+
 dt1 = pq_opr(dt_banks, '601288.SS/601988.SS')
+print(dt1)
+
 dt2 = pq_opr(dt_banks, c('(601288.SS+601988.SS)/2', '(601288.SS*601988.SS)^0.5'))
+print(dt2)
 
 }
