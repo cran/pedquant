@@ -1,3 +1,7 @@
+# pedquant 0.2.1
+
+* remove several not needed scripts
+
 # pedquant 0.2.0
 
 * fixed various bugs
