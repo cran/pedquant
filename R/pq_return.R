@@ -35,7 +35,7 @@ dat_add_byfreq = function(dat, freq) {
     return(dat2)
 }
 
-#' @importFrom xefun date_bop date_eop
+#' @importFrom xefun date_bop date_eop as.list2
 pq1_return = function(dt, x, freq='daily', n=1, date_type = 'eop', method = 'arithmetic', leading=FALSE, cumreturns = FALSE, rcol_name = NULL, cols_keep = c('symbol', 'date')) {
     . = Ra = chg = cumRa = byfreq = byyear = x_lag = NULL
     
@@ -43,7 +43,7 @@ pq1_return = function(dt, x, freq='daily', n=1, date_type = 'eop', method = 'ari
     
     freq_list = c('daily', 'weekly', 'monthly', 'quarterly', 'yearly')
     if (freq == 'all') freq = freq_list
-    freq = xefun:::c_list(intersect(freq_list, freq))
+    freq = as.list2(intersect(freq_list, freq))
     
     
         
@@ -116,7 +116,7 @@ pq1_return = function(dt, x, freq='daily', n=1, date_type = 'eop', method = 'ari
 #' \donttest{
 #' # load data and adjust
 #' data(dt_banks)
-#' datadj = md_stock_adjust(dt_banks, adjust = FALSE)
+#' datadj = md_stock_adjust(dt_banks)
 #' 
 #' # set freq
 #' dts_returns1 = pq_return(datadj, x = 'close_adj', freq = 'all')

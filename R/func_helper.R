@@ -70,7 +70,7 @@ tags_symbol_stockcn = function(symbol, mkt, only_tags = TRUE) {
     ][nchar(syb)==5, tags := ifelse(substr(syb,1,2)=="08", "hkex,,gem", "hkex,,main")]
 
     tags = rbind(
-        merge(sm[nchar(syb)==6][,tags:=NULL], tags_dt(), all.x = TRUE, by = c('mkt', 'syb3')),
+        merge(sm[nchar(syb)==6][,tags:=NULL], syb_cntags(), all.x = TRUE, by = c('mkt', 'syb3')),
         sm[nchar(syb)==5][],
         fill = TRUE
     )#[!is.na(tags)]#[,tags]
@@ -105,8 +105,14 @@ tags_symbol_stockcn = function(symbol, mkt, only_tags = TRUE) {
     if (only_tags) tags = tags[,tags]
     return(tags)
 }
+
+
 # tags of SSE/SZSE shares symbols
-tags_dt = function() {
+# http://www.sse.com.cn/
+# https://szse.com.cn/
+# https://www.neeq.com.cn/
+# https://www.bse.cn/
+syb_cntags = function() {
     tags = exchg_code = NULL
     
     fread(
@@ -127,9 +133,11 @@ tags_dt = function() {
         stock 301 szse,A,chinext
         stock 200 szse,B,main
         stock 201 szse,B,main
-        stock 43 bse,A,main
-        stock 83 bse,A,main
-        stock 87 bse,A,main
+        stock 43 neeq,-,neeq
+        stock 83 neeq,-,neeq
+        stock 87 neeq,-,neeq
+        stock 400 neeq,-,neeq
+        stock 420 neeq,-,neeq
         index 000 sse,-,-
         index 399 szse,-,-
         fund 15 szse,-,-
@@ -138,63 +146,73 @@ tags_dt = function() {
         fund 50 sse,-,-
         fund 51 sse,-,-
         fund 52 sse,-,-
+        fund 56 sse,-,-
+        fund 58 sse,-,-
         ",
         colClasses=list(character=1:3)
     )[,(c('exchange','AB','board')) := tstrsplit(tags,',')
      ][, exchg_code := toupper(substr(tags,1,2))
      ][exchg_code == 'SS', `:=`(city='sh', city_code='0')
-     ][exchg_code == 'SZ', `:=`(city='sz', city_code='1')][]
+     ][exchg_code == 'SZ', `:=`(city='sz', city_code='1')
+     ][exchg_code == 'BS', `:=`(city='bj')
+     ][grepl('neeq'), `:=`(city='nq')]
     
 }
-check_symbol_cn = function(symbol, mkt = NULL) {
-    exchg_code = syb3 = syb = syb_code = syb_num = city = . = syb_exp = NULL
+syb_add_cntags = function(symbol, market = NULL) {
+    . = city = exchg_code = mkt = rid = syb = syb3 = syb_exp = NULL
      
-    tags = tags_dt()[, exchg_code := tolower(exchg_code)][]
+    tags = syb_cntags()[, exchg_code := tolower(exchg_code)][]
     
-    cn_dt = setDT(list(symbol = tolower(symbol)))[, syb_num := 3]
-    if (!is.null(mkt) & length(mkt) == 1) {
-        mkt = rep(mkt, length(symbol))
-        cn_dt[, mkt := mkt]
-    } else if (!is.null(mkt) & length(mkt) == length(symbol)) {
-        cn_dt[, mkt := mkt]
-    } else if (is.null(mkt) & !all(grepl('[a-zA-Z]', symbol))) {
-        fund_syb3 = tags[mkt == 'fund', paste0('^',syb3, collapse = '|')]
-        
-        cn_dt[grepl("^\\^",symbol), mkt := 'index'
-          ][grepl(fund_syb3, symbol), `:=`(mkt = "fund", syb_num = 2)
-          ][is.na(mkt), mkt := 'stock']
+    lst_syb = list(
+        rid = seq_along(symbol), 
+        symbol = tolower(as.character(symbol))
+    )
+    if (is.null(market)) {
+        lst_syb$mkt = rep(as.character(NA), length(symbol))
+    } else {
+        if (length(market) == 1) market = rep(market, length(symbol))
+        lst_syb$mkt = as.character(market)
     }
     
-    cn_dt = cn_dt[, `:=`(
-        syb = sub("^.*?([0-9]+).*$","\\1",symbol),
-        syb_code = gsub("[^a-zA-Z]+",'',symbol)
-    )][nchar(syb) == 6,syb3 := substr(syb, 1, syb_num)
-     ][syb_code %in% c('ss','sz'), exchg_code := syb_code
-     ][syb_code %in% c('sh','sz'), city := syb_code][]
+    # create a data.table of symbol
+    dt_syb = setDT(lst_syb)[is.na(mkt) & grepl("^\\^",symbol), mkt := 'index' 
+    ][is.na(mkt) & grepl("[0-9]{6}",symbol), mkt := 'stock'
+    ][, syb3 := substr(sub('^\\^', '', symbol), 1, 3)
+    ][!grepl('[0-9]{3}', syb3), syb3 := NA
+    ][grepl('\\.(hk|ss|sz|bs)$',symbol), exchg_code := sub('.+\\.(hk|ss|sz|bs)$', '\\1', symbol)
+    ][grepl('\\.(hk|sh|sz|bj)$',symbol), city := sub('.+\\.(hk|sh|sz|bj)$', '\\1', symbol)
+    ][!is.na(exchg_code) | !is.na(city), mkt := NA]
     
-    cn_tag_lst = lapply(list(
-        cn_dt[!is.na(exchg_code)][,.(syb3, exchg_code, symbol, syb)],
-        cn_dt[is.na(exchg_code) & !is.na(city)][,.(syb3, city, symbol, syb)],
-        cn_dt[is.na(exchg_code) & is.na(city)][,.(mkt, syb3, symbol, syb)]
-    ), function(c) {
-        by_cols = intersect(names(c), names(tags))
-        sub_cn_tags = merge(c, tags, by = by_cols, all.x = TRUE, sort = FALSE)
-        return(sub_cn_tags)
-    })
-    cn_tag = rbindlist(cn_tag_lst, fill = TRUE)[
-        is.na(city) & grepl('.hk$', symbol), 
-        `:=`(city = 'hk', exchg_code = 'hk') 
+    # merge dt_syb with tags
+    dt_syb3 = dt_syb[!is.na(syb3)]
+    dt_syb_tags = rbindlist(lapply(list(
+        dt_syb3[!is.na(exchg_code)][, .(rid, symbol, syb3, exchg_code)], # syb3, exchg_code
+        dt_syb3[is.na(exchg_code) & !is.na(city)][, .(rid, symbol, syb3, city)], # syb3, city
+        dt_syb3[is.na(exchg_code) &  is.na(city)][, .(rid, symbol, syb3, mkt)], # syb3, mkt
+        dt_syb3[, .(rid, symbol, syb3, mkt='fund')] # syb3, mkt(fund)
+    ), function(x) {
+        by_cols = intersect(names(x), names(tags))
+        rbindlist(list(
+            merge(copy(x), tags, by = by_cols), 
+            merge(copy(x)[,syb3 := substr(syb3,1,2)], tags, by = by_cols)
+        ), fill = TRUE)
+    }), fill = TRUE)
+    
+    rbind(
+        dt_syb_tags, dt_syb, fill=TRUE
+    )[, .SD[1], keyby = 'rid'
+    ][, syb := sub("^.*?([0-9]+).*$","\\1",symbol)
     ][!is.na(exchg_code), syb_exp := paste(syb, exchg_code, sep='.')
     ][is.na(syb_exp), syb_exp := syb
-    ][, syb_exp := toupper(syb_exp)]
+    ][, syb_exp := toupper(syb_exp)
+    ][]
     
-    return(cn_tag)
 }
 # check SSE/SZSE share symbols to download data from 163/tx/yahoo
-check_symbol_for_163 = function(symbol, mkt = NULL) {
+syb_fmt_163 = function(symbol, mkt = NULL) {
     syb_163 = city_code = syb = tags = NULL
     
-    symbol_163 = check_symbol_cn(
+    symbol_163 = syb_add_cntags(
         symbol, mkt
     )[, syb_163 := paste0(city_code,syb)
     ][is.na(tags), syb_163 := symbol
@@ -202,10 +220,10 @@ check_symbol_for_163 = function(symbol, mkt = NULL) {
     
     return(symbol_163)
 }
-check_symbol_for_tx = function(symbol, mkt = NULL) {
+syb_fmt_tx = function(symbol, mkt = NULL) {
     syb_tx = city = syb = tags = NULL
     
-    symbol_tx = check_symbol_cn(
+    symbol_tx = syb_add_cntags(
         symbol, mkt
     )[, syb_tx := paste0(city,syb)
     ][is.na(tags), syb_tx := symbol
@@ -213,17 +231,22 @@ check_symbol_for_tx = function(symbol, mkt = NULL) {
     
     return(symbol_tx)
 }
-check_symbol_for_yahoo = function(symbol, mkt = NULL) {
-    syb_yh = syb = exchg_code = tags = NULL
+syb_fmt_output = function(symbol, mkt = NULL) {
+    syb_yh = syb = exchg_code = tags = cnsyb = city = NULL
     
-    if (all(grepl('[0-9]{6}', symbol))) {
-        symbol = check_symbol_cn(
-            symbol, mkt
-        )[, syb_yh := paste(syb, exchg_code, sep = '.') #paste0(city,syb)
+    dtsyb = data.table(syb = symbol)[, cnsyb := grepl('[0-9]{6}', syb)]
+    
+    if (nrow(dtsyb[cnsyb == TRUE]) > 0) {
+        sybout = syb_add_cntags(
+            dtsyb[cnsyb == TRUE,syb], mkt
+        )[, syb_yh := paste(syb, toupper(city), sep = '.') #paste0(city,syb)
         ][is.na(tags), syb_yh := symbol
         ][][, syb_yh]
     }
-    return(toupper(symbol))
+    
+    dtsyb[cnsyb == TRUE, syb := sybout]
+    
+    return(toupper(dtsyb$syb))
 }
 
 
@@ -368,11 +391,16 @@ read_apidata_sina = function(url, sybs, cols_name) {
 }
 
 read_api_eastmoney = function(url) {
-    datmp = GET(url) %>% 
-        read_html() %>% 
-        html_nodes('p') %>% 
-        html_text() %>% 
-        fromJSON()
+    datmp = POST(url) %>% 
+        content(encoding = 'UTF-8')
+        
+    # GET(url) %>% 
+    #     read_html() %>% 
+    #     html_nodes('p') %>% 
+    #     html_text() %>% 
+    #     fromJSON(datmp)
+    
+    # datmp = rbindlist(lapply(datmp$data$diff, setDT))
     
     return(datmp)
 }
@@ -388,8 +416,10 @@ read_apidata_eastmoney = function(url, type='history') {
             market = datmp$data$market
         )][]
     } else if (type == 'real_us') {
-        dat = data.table(datmp$data$diff)
-        setnames(dat, c("v1", "close", "change_pct", "change", "volume", "amount", "amplitude", "turnover", "pe", "v2", "v3", "symbol", "exchange_code", "name", "high", "low", "open", "close_prev", 'cap_total', paste0('v', 5:6), "pb", paste0('v', 7:17)))
+        dat = rbindlist(lapply(datmp$data$diff, setDT))
+        
+    } else if (type == 'real_cn') {
+        dat = rbindlist(lapply(datmp$data$diff, setDT))
     }
     
     return(dat)
@@ -448,7 +478,7 @@ load_dat_loop = function(symbol, func, args=list(), print_step, sleep = 0, ...) 
         # sleep for 1s
         if (sleep > 0) Sys.sleep(abs(rnorm(1, mean=sleep)))
     }
-    return(dt_list)
+    return(dt_list[])
 }
 
 

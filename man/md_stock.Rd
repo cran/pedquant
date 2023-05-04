@@ -5,13 +5,12 @@
 \title{query stock market data}
 \usage{
 md_stock(symbol, type = "history", date_range = "3y", from = NULL,
-  to = Sys.Date(), adjust = FALSE, freq = "daily", print_step = 1L,
-  ...)
+  to = Sys.Date(), forward = NULL, print_step = 1L, ...)
 }
 \arguments{
 \item{symbol}{symbols of stock shares.}
 
-\item{type}{the data type, including history, adjfactor, real and info. Default is history.}
+\item{type}{the data type, including history, real. Defaults to history.}
 
 \item{date_range}{date range. Available value including '1m'-'11m', 'ytd', 'max' and '1y'-. Default is '3y'.}
 
@@ -19,23 +18,20 @@ md_stock(symbol, type = "history", date_range = "3y", from = NULL,
 
 \item{to}{the end date. Default is current system date.}
 
-\item{adjust}{whether to adjust the OHLC prices, defaults to FALSE. If it is FALSE, create a close_adj column if not exist; if it is TRUE, adjust all open, high, low, close columns; if it is NULL, return the original data from source.
-For the yahoo data, the adjustment is based on the close_adj; for the 163 data, the adjustment is based on the cumulative products of close/close_prev.}
-
-\item{freq}{data frequency, default is daily. .}
+\item{forward}{whether to forward adjust the OHLC prices. If it is NULL, return the original data from source, defaults to NULL.}
 
 \item{print_step}{A non-negative integer. Print symbol name by each print_step iteration. Default is 1L.}
 
 \item{...}{Additional parameters.}
 }
 \description{
-\code{md_stock} provides an interface to query stock or fund data from 163 for SSE and SZSE shares, from eastmoney for HKEX and US shares.
+\code{md_stock} provides an interface to query stock or fund data.
 }
 \examples{
 \dontrun{
 # Example I: query history data
 # us
-FAANG = md_stock(c('FB', 'AMZN', 'AAPL', 'NFLX', 'GOOG'))
+FAANG = md_stock(c('META', 'AMZN', 'AAPL', 'NFLX', 'GOOG'))
 
 # hkex
 TMX = md_stock(c('00700.hk', '03690.hk', '01810.hk'))
@@ -46,36 +42,16 @@ dt_cn1 = md_stock(c("000001", "^000001", "512510"))
 ## the symbol with suffix
 dt_cn2 = md_stock(c("000001.sz", "000001.ss", '512510.ss'))
 
-
-# Example II: price adjust factors
-# adjust factors, splits and dividend
-dt_adj = md_stock(symbol=c("000001", "^000001"), type='adjfactor', date_range='max')
-             
              
 # Example III: query real prices
 # real price for equities
-
-
-# real prices of all A shares in sse and szse
-dt_real2 = md_stock(symbol='a', type='real')
-# real prices of all A/B shares and index in sse and szse
-dt_real3 = md_stock(symbol=c('a', 'b', 'index'), type='real')
-
-# show real prices and sector/industry
-dt_real4 = md_stock(symbol = c('a', 'b', 'index', 'fund'), 
-  type = 'real', show_tags = TRUE)
-
-
-# Example IV: 
-# valuation ratios (pe, pb, ps) for shares in sse and szse
-dt_valuation = md_stock(symbol=c('600000', '000001', '^000001', '^399001'), 
-               valuation = TRUE)
+dt_real1 = md_stock(c('META', 'AMZN', 'AAPL', 'NFLX', 'GOOG',
+                     '00700.hk', '03690.hk', '01810.hk',
+                     "000001", "^000001", "512510"), type = 'real')
                
                
-# query company information (profile/ipo), revenue and staff
+# query company information 
 dt_info1 = md_stock('600036', type = 'info')
-# query history revenue 
-dt_info2 = md_stock('600036', type = 'info', rev_hist = TRUE)
 }
 
 }

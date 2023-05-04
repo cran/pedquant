@@ -39,7 +39,6 @@ nbs_symbol1 = function(geo_type=NULL, freq=NULL, symbol='zb', eng=FALSE) {
   
   #param
   nbs_url = sel_nbs_url(eng)
-  # time_sec = as.character(date_to_sec()*100)
   if (is.null(symbol)) symbol = 'zb'
   # name of geography in NBS
   nbs_dbcode = dim_nbs_db()[
@@ -137,13 +136,14 @@ ed_nbs_symbol = function(symbol=NULL, geo_type=NULL, freq=NULL, eng=FALSE) {
 #' }
 #' @importFrom jsonlite fromJSON 
 #' @importFrom httr set_config
+#' @importFrom xefun date_num
 #' @export
 ed_nbs_subregion = function(geo_type=NULL, eng=FALSE) {
   dim_region = dim_geo_type = dim_sta_db = . = code = name = NULL
   
   # param
   nbs_url = sel_nbs_url(eng)
-  time_sec = as.character(date_to_sec()*100)
+  time_sec = date_num(Sys.time(), 'milliseconds')
   
   # geography type
   geo_type = check_arg(geo_type, c("province", "city"), default = NULL, arg_name = 'geo_type')
@@ -195,7 +195,7 @@ ed1_nbs = function(symbol1, geo_type, subregion=NULL, from, freq, eng=FALSE) {
   nbs_dbcode = dim_nbs_db()[dim_geo_type==geo_type & dim_freq==freq, dim_sta_db]
   
   nbs_url = sel_nbs_url(eng)
-  time_sec = as.character(date_to_sec()*100)
+  time_sec = date_num(Sys.time(), 'ms')
   
   ## symbol
   symbol1 = ed_nbs_symbol(symbol=symbol1, geo_type, freq, eng)
@@ -272,7 +272,7 @@ nbs_jsondat_format = function(jsondat) {
   if ('reg' %in% code_names) {
     reg_df = setDT(jsondat$returndata$wdnodes$nodes[[which('reg' == code_names)]])[,.(geo=cname, geo_code=code)]
     
-    dat2 = dat2[reg_df, on = 'geo_code']
+    dat2 = merge(dat2, reg_df, by = 'geo_code')
   } else {
     dat2 = dat2[, `:=`(geo_code = 'cn', geo = 'china')]
   }
@@ -357,6 +357,7 @@ ed_nbs = function(symbol=NULL, freq=NULL, geo_type=NULL, subregion=NULL, date_ra
   ## symbol
   if (is.null(symbol)) symbol = ed_nbs_symbol(geo_type = geo_type, freq = freq, eng = eng)
   
+  # print(sprintf('symbol = "%s", freq = "%s", geo_type = "%s", subregion = "%s"', symbol, freq, geo_type, subregion))
   # jsondat
   jsondat_list = NULL
   for (s in symbol) {
@@ -376,7 +377,7 @@ ed_nbs = function(symbol=NULL, freq=NULL, geo_type=NULL, subregion=NULL, date_ra
     setkeyv(temp, c('geo_code','date'))
     dat_lst[[i]] = temp[,geo_code := NULL]
   }
-  return(dat_lst)
+  return(dat_lst[])
 }
 
 # library(data.table)

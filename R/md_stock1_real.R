@@ -1,3 +1,30 @@
+md_stock_real = function(symbol, trytimes = 3, source = c('tx', 'sina'), ...) {
+    dat = NULL
+    ti = 1
+    
+    if (length(intersect(symbol, c('a','b','index', 'fund'))) > 0) {
+        while (!inherits(dat, 'list') & ti <= trytimes) {
+            dat = try(do.call('md_stocka_eastmoney', args = list(symbol=symbol, ...)), silent = TRUE)
+            ti = ti + 1
+        }
+        
+    } else {
+        si = 1
+        
+        while (!inherits(dat, 'data.frame') & ti <= trytimes & si <= length(source)) {
+            dat = try(do.call(paste0('md_stock_real_', source[si]), args = list(symbol=symbol, ...)), silent = TRUE)
+            if (!inherits(dat, 'data.frame') & ti == trytimes) {
+                ti = 1
+                si = si + 1
+            } else {
+                ti = ti + 1    
+            }
+        }
+    }
+    
+    return(dat)
+}
+
 # real ------
 # sina: hq.sinajs.cn/list=sz150206
 # http://hq.sinajs.cn/list=usr_aapl
@@ -5,7 +32,7 @@
 md_stock_real_sina = function(symbols, only_syb_nam = FALSE, ...) {
     city = syb = exchg_code = name = time = sybsina = NULL
         
-    sybs_xchg = check_symbol_cn(symbols)[
+    sybs_xchg = syb_add_cntags(symbols)[
         , sybsina := syb
     ][is.na(city), `:=`(
         syb = toupper(syb), 
@@ -68,7 +95,7 @@ md_stock_real_sina = function(symbols, only_syb_nam = FALSE, ...) {
 md_stock_real_tx = function(symbols, only_syb_nam = FALSE, ...) {
     city = exchg_code = syb = symbol = amount = mkt = volume = cap_market = cap_total = unit = NULL
     
-    sybs_xchg = check_symbol_cn(symbols)[is.na(city), `:=`(
+    sybs_xchg = syb_add_cntags(symbols)[is.na(city), `:=`(
         syb = toupper(syb), 
         city = 'us'
     )]
@@ -93,7 +120,7 @@ md_stock_real_tx = function(symbols, only_syb_nam = FALSE, ...) {
                       'bid1', 'bid1_volume', 'bid2', 'bid2_volume', 'bid3', 'bid3_volume', 'bid4', 'bid4_volume', 'bid5', 'bid5_volume',
                       'ask1', 'ask1_volume', 'ask2', 'ask2_volume', 'ask3', 'ask3_volume', 'ask4', 'ask4_volume', 'ask5', 'ask5_volume',
                       'last_trade', 'date', 'change', 'change_pct', 'high', 'low',  
-                      '', 'volume', 'amount', 'turnover', 'pe_trailing', '', '', '', 'amplitude', 'cap_market', 'cap_total', 'pb', 'limit-up', 'limit-down', 'qrr', '', 'average', 'pe_forward', 'pe_last', paste0('v', 1:23))
+                      '', 'volume', 'amount', 'turnover', 'pe_trailing', '', '', '', 'amplitude_pct', 'cap_market', 'cap_total', 'pb', 'limit-up', 'limit-down', 'qrr', '', 'average', 'pe_forward', 'pe_last', paste0('v', 1:23))
                 
                 if (unique(x$city) == 'hk') cols_name = 
                         c('v1', 'name', 'symbol', 'close', 'close_prev', 'open',
@@ -101,7 +128,7 @@ md_stock_real_tx = function(symbols, only_syb_nam = FALSE, ...) {
                           'bid1', 'bid1_volume', 'bid2', 'bid2_volume', 'bid3', 'bid3_volume', 'bid4', 'bid4_volume', 'bid5', 'bid5_volume',
                           'ask1', 'ask1_volume', 'ask2', 'ask2_volume', 'ask3', 'ask3_volume', 'ask4', 'ask4_volume', 'ask5', 'ask5_volume',
                           'last_trade', 'date', 'change', 'change_pct', 'high', 'low',  
-                          '', 'volume', 'amount', '', '', '', '', '', 'amplitude', 'cap_market', 'cap_total', 'name_eng', paste0('v0_', 1:12), 'turnover', paste0('v', 6:20))
+                          '', 'volume', 'amount', '', '', '', '', '', 'amplitude_pct', 'cap_market', 'cap_total', 'name_eng', paste0('v0_', 1:12), 'turnover', paste0('v', 6:20))
                 
                 if (unique(x$city) == 'us') cols_name = 
                         c('v1', 'name', 'symbol', 'close', 'close_prev', 'open',
@@ -109,14 +136,14 @@ md_stock_real_tx = function(symbols, only_syb_nam = FALSE, ...) {
                           'bid1', 'bid1_volume', 'bid2', 'bid2_volume', 'bid3', 'bid3_volume', 'bid4', 'bid4_volume', 'bid5', 'bid5_volume',
                           'ask1', 'ask1_volume', 'ask2', 'ask2_volume', 'ask3', 'ask3_volume', 'ask4', 'ask4_volume', 'ask5', 'ask5_volume',
                           'last_trade', 'date', 'change', 'change_pct', 'high', 'low',  
-                          'unit', 'volume', 'amount', 'turnover', '', '', '', '', 'amplitude', 'cap_market', 'cap_total', 'name_eng', paste0('v0_', 1:11), 'pe', 'pb', '', paste0('v', 7:13))
+                          'unit', 'volume', 'amount', 'turnover', '', '', '', '', 'amplitude_pct', 'cap_market', 'cap_total', 'name_eng', paste0('v0_', 1:11), 'pe', 'pb', '', paste0('v', 7:13))
             }
             
             
             setnames(dat, cols_name[1:ncol(dat)])
             # sybs = x[,ifelse(is.na(exchg_code), syb, paste(syb, exchg_code, sep='.'))]
             dat = dat[, symbol := x$syb_exp
-                    ][, intersect(c('symbol', 'name', 'date', 'open', 'high', 'low', 'close', 'close_prev', 'change', 'change_pct', 'amplitude', 'turnover', 'volume', 'amount', 'cap_market', 'cap_total', 'name_eng', 'unit'), names(dat)), with=FALSE]
+                    ][, intersect(c('symbol', 'name', 'date', 'open', 'high', 'low', 'close', 'close_prev', 'change', 'change_pct', 'amplitude_pct', 'turnover', 'volume', 'amount', 'cap_market', 'cap_total', 'name_eng', 'unit'), names(dat)), with=FALSE]
             return(dat)
         }
     )
@@ -127,7 +154,7 @@ md_stock_real_tx = function(symbols, only_syb_nam = FALSE, ...) {
         dt2 = dt[, c('symbol', 'name'), with = FALSE]
     } else {
         num_cols = c(
-            'open', 'high', 'low', 'close', 'close_prev', 'change', 'change_pct', 'amplitude', 'turnover', 'volume', 'amount', 'cap_market', 'cap_total'
+            'open', 'high', 'low', 'close', 'close_prev', 'change', 'change_pct', 'amplitude_pct', 'turnover', 'volume', 'amount', 'cap_market', 'cap_total'
         )
         
         dt2 = copy(dt)[, `:=`(
@@ -137,7 +164,7 @@ md_stock_real_tx = function(symbols, only_syb_nam = FALSE, ...) {
         ][grepl('HK$', symbol), unit := 'HKD'
         ][is.na(unit), unit := 'CNY'
         ][, amount := amount*10000
-        ][, mkt := check_symbol_cn(symbol)$mkt
+        ][, mkt := syb_add_cntags(symbol)$mkt
         ][mkt == 'stock', volume := volume*100
         ][, mkt := NULL
         ][, `:=`(
