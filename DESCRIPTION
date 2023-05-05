@@ -1,5 +1,5 @@
 Package: pedquant
-Version: 0.2.2
+Version: 0.2.2.1
 Title: Public Economic Data and Quantitative Analysis
 Description: 
     Provides an interface to access public economic and financial data for 
@@ -21,8 +21,8 @@ LazyData: true
 RoxygenNote: 7.2.1
 Encoding: UTF-8
 NeedsCompilation: no
-Packaged: 2023-05-04 13:43:23 UTC; shichenxie
+Packaged: 2023-05-05 12:14:41 UTC; shichenxie
 Author: Shichen Xie [aut, cre]
 Maintainer: Shichen Xie <xie@shichen.name>
 Repository: CRAN
-Date/Publication: 2023-05-04 14:20:06 UTC
+Date/Publication: 2023-05-05 15:00:06 UTC

@@ -1,6 +1,6 @@
-4b81716cbbc9a3f7e01dd141fe38eb7a *DESCRIPTION
+bce9b70193618f2d63a5349df9ea27af *DESCRIPTION
 c918d939e4bf48f56b94f5fcd460234e *NAMESPACE
-e1ef665ed674e61a14aa0fbb0fefe734 *NEWS.md
+ebc5ccd2944f38060c23d65a2b4cbe71 *NEWS.md
 69f6b7a2c600d8e6d4756a03b9c14719 *R/datasets.R
 b2ce449f7f24f2c42ac9a773e34dd5cc *R/ed_0cate.R
 f2e2aa8d170a51c26814b241262c202c *R/ed_code.R
@@ -9,7 +9,7 @@ f2e2aa8d170a51c26814b241262c202c *R/ed_code.R
 295997b992a31f257633142a36207fc6 *R/ed_nbs.R
 2d16d0628a252a6a30338061c7793dd9 *R/ed_worldbank.R
 e551ea9e8fc414b53ebb89da1eca5112 *R/func_date.R
-c8c094b24b58a6973397853335ba26ad *R/func_helper.R
+6894d4d63cb6070c1ca9ef916b847d50 *R/func_helper.R
 49f615c23200eb7eb4a9526357de75c6 *R/md_0query.R
 245f8c5ba40d6f61564358f74797e067 *R/md_1forex.R
 8c02b8fe896863da2ea17b05b8abf33d *R/md_2bond.R
@@ -20,10 +20,10 @@ c8c094b24b58a6973397853335ba26ad *R/func_helper.R
 5fe2946131a8c7161915a0fd4cc4bd14 *R/md_stock1_.R
 4aaeb0877135a4061a11e39f305cda97 *R/md_stock1_hist.R
 ec6d996820f00688ffe262021e2a9c86 *R/md_stock1_info.R
-1b4a5be3ddca3687103c2ec768ebef92 *R/md_stock1_real.R
+23050391860cd4707e74d8a231ab48f8 *R/md_stock1_real.R
 544bbcb6456664fbe9bef902d250aa0a *R/md_stock_financials.R
-1c9537a60a6d08356d86f7de5a1f71f4 *R/md_stock_symbol.R
-05fb5f0f245051507fd1c948d8c4bf97 *R/md_stocka_real.R
+45d766b4adf8a3367d2bfde9bec4f45e *R/md_stock_symbol.R
+7cb615949743c72d8ae64546769e4d1e *R/md_stocka_real.R
 0c20fbbc70da9fa38d0aee4d736aee0b *R/md_stooq.R
 c334cb487c45f2dc90588d6a84ebef46 *R/pq_addti.R
 6f56d63be20588bfef3ce172aaec3dc0 *R/pq_freq.R
