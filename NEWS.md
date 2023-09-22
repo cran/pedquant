@@ -1,3 +1,9 @@
+# pedquant 0.2.3
+
+* adjusted order book structure
+* modified symbol suffix of shanghai exchange shares from 'ss' to 'sh'
+* set y-axis starts from 'dataMin'
+
 # pedquant 0.2.2.1
 
 * fixed a bug in md_stock function

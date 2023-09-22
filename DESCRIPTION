@@ -1,5 +1,5 @@
 Package: pedquant
-Version: 0.2.2.1
+Version: 0.2.3
 Title: Public Economic Data and Quantitative Analysis
 Description: 
     Provides an interface to access public economic and financial data for 
@@ -18,11 +18,11 @@ License: GPL-3
 URL: https://github.com/ShichenXie/pedquant
 BugReports: https://github.com/ShichenXie/pedquant/issues
 LazyData: true
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
 Encoding: UTF-8
 NeedsCompilation: no
-Packaged: 2023-05-05 12:14:41 UTC; shichenxie
+Packaged: 2023-09-22 11:17:40 UTC; shichenxie
 Author: Shichen Xie [aut, cre]
 Maintainer: Shichen Xie <xie@shichen.name>
 Repository: CRAN
-Date/Publication: 2023-05-05 15:00:06 UTC
+Date/Publication: 2023-09-22 11:40:02 UTC

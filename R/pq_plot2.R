@@ -1,7 +1,14 @@
+pp_yrng = function(dt, y, yb, yrng=NULL, ...) {
+    if (!is.null(yrng)) return(yrng)
+    yval = dt[[y]]
+    if (!is.null(yb)) yval = c(yval, dt[[yb]])
+    
+    range(yval, na.rm = TRUE)
+}
 
 pp_dtpre = function(dt, x='date', y='close', 
                     addti = NULL, markline = TRUE, 
-                    orders = NULL, order_y = 'prices', order_type = 'type') {
+                    orders = NULL, order_y = 'prices', order_type = 'side_bs') {
     sybnam = symbol = name = markline_value = NULL
     
     dt = setorderv(copy(dt), c('symbol', x))[, sybnam := sprintf('%s %s', symbol, name[.N]), by = 'symbol']
@@ -32,11 +39,13 @@ pp_dtpre = function(dt, x='date', y='close',
     
     return(dt)
 }
-pp_title = function(dt, title=NULL) {
+pp_title = function(dt, title=NULL, sybnam_N=TRUE, ...) {
     # symbol = name = NULL 
     if (is.null(title) & length(unique(dt$symbol))==1) {
         cols_sn = intersect(c('symbol','name'), names(dt))
-        title = setDT(dt)[.N, cols_sn, with=FALSE]
+        if (sybnam_N == TRUE) {
+            title = setDT(dt)[.N, cols_sn, with=FALSE]
+        } else title = setDT(dt)[1, cols_sn, with=FALSE]
         title = paste0(unlist(title), collapse = ' ')
     }
     return(title)
@@ -55,14 +64,17 @@ pp_xstart = function(dt, x = 'date', date_range = 'max') {
 }
 
 
-p_theme = function(e, xstart = 0, xend = 100, yaxis_log = FALSE, title = 'none', theme = 'default') {
+p_theme = function(e, xstart = 0, xend = 100, yaxis_log = FALSE, #yrng = NULL, 
+                   title = 'none', theme = 'default') {
     if (isTRUE(yaxis_log)) yaxis_type = 'log' else yaxis_type = 'value'
     
     e |>  
         e_title(title, left='30') |> 
         e_tooltip(trigger='axis', axisPointer = list(type = 'cross', show = TRUE)) |> 
         e_datazoom(x_index = 0, start = xstart, end = xend) |> 
-        e_y_axis(type = yaxis_type, position = 'right', axisLabel = list(rotate = 90) ) |> 
+        e_y_axis(
+            min='dataMin', # yrng[1], # max=yrng[2], 
+            type = yaxis_type, position = 'right', axisLabel = list(rotate = 90) ) |> 
         e_toolbox(right='30') |> 
         e_toolbox_feature(c("restore", "dataZoom", "saveAsImage")) |> 
         e_legend(type = "plain", orient = "vertical", left='30', top='30') |> 
@@ -91,15 +103,15 @@ p_markline = function(e, dt, markline = TRUE) {
 p_orders = function(e, orders, color_up = "#CF002F", color_down = "#000000", orders_ml=FALSE, ...) {
     if (is.null(orders)) return(e)
     
-    if ('buy' %in% unique(orders$type)) e = e_scatter_(e, 'buy', symbol = 'triangle', symbolSize = 12, color = color_up, legend = FALSE)
-    if ('sell' %in% unique(orders$type)) e = e_scatter_(e, 'sell', symbol = 'triangle', symbolSize = 12, symbolRotate=180, color = color_down, legend = FALSE) 
-    if ('bto' %in% unique(orders$type)) e = e_scatter_(e, 'bto', symbol = 'circle', symbolSize = 12, color = color_up, legend = FALSE)
-    if ('stc' %in% unique(orders$type)) e = e_scatter_(e, 'stc', symbol = 'circle', symbolSize = 12, symbolRotate=180, color = color_down, legend = FALSE) 
-    if ('sto' %in% unique(orders$type)) e = e_scatter_(e, 'sto', symbol = 'rect', symbolSize = 12, color = color_up, legend = FALSE)
-    if ('btc' %in% unique(orders$type)) e = e_scatter_(e, 'btc', symbol = 'rect', symbolSize = 12, symbolRotate=180, color = color_down, legend = FALSE) 
-    
+    # long
+    if ('buy' %in% unique(orders$side_bs)) e = e_scatter_(e, 'buy', symbol = 'triangle', symbolSize = 12, color = color_up, legend = FALSE)
+    if ('sell' %in% unique(orders$side_bs)) e = e_scatter_(e, 'sell', symbol = 'triangle', symbolSize = 12, symbolRotate=180, color = color_down, legend = FALSE) 
+    # short
+    if ('buy_short' %in% unique(orders$side_bs)) e = e_scatter_(e, 'buy_short', symbol = 'triangle', symbolSize = 12, color = color_up, legend = FALSE)
+    if ('sell_short' %in% unique(orders$side_bs)) e = e_scatter_(e, 'sell_short', symbol = 'triangle', symbolSize = 12, symbolRotate=180, color = color_down, legend = FALSE) 
+
     if (isFALSE(orders_ml)) return(e)
-    for (o in split(orders,by='type')) {
+    for (o in split(orders,by='side_bs')) {
         for (i in o[,.I]) {
             e = e |>
                 e_mark_line(
@@ -231,7 +243,7 @@ p_addti_indicator = function(e, dt, addti = NULL, x = 'date', theme = 'default')
                 }
                 
                  e = do.call(efun, args = ticol_args) |> 
-                     e_y_axis(position = 'right', axisLabel = list(rotate = 90, hideOverlap=TRUE)) |> 
+                     e_y_axis(min='dataMin', position = 'right', axisLabel = list(rotate = 90, hideOverlap=TRUE)) |> 
                      e_legend(type = "plain", orient = "vertical", left='30', top='10') |> 
                      e_datazoom(show=FALSE) |>
                      e_toolbox(show=FALSE) |>
@@ -271,13 +283,13 @@ pp_line = function(
     dt, x = 'date', y = 'close', yb = NULL, date_range = 'max', yaxis_log = FALSE, title = NULL, 
     color_up = "#CF002F", color_down = "#000000", theme = 'default', 
     markline = TRUE, nsd_lm = NULL, addti = NULL, 
-    orders = NULL, order_y = 'prices', order_type = 'type', ...
+    orders = NULL, order_y = 'prices', order_type = 'side_bs', ...
 ) {
     dt = pp_dtpre(dt, x, y, addti, markline, orders, order_y, order_type) |>
         pp_dtlm(x, y, yaxis_log, nsd_lm)
-    title  = pp_title(dt, title)
+    title  = pp_title(dt, title, ...)
     xstart = pp_xstart(dt, x, date_range)
-    
+    # yrng = pp_yrng(dt=dt, y=y, yb=yb, ...)
     
     e = pp_base(dt, x, yb=yb) |> 
         e_line_(serie = y, legend=TRUE, symbol='none') |>
@@ -285,7 +297,8 @@ pp_line = function(
         p_markline(dt = dt, markline = markline) |> 
         p_lm(x=x, y=y, nsd_lm=nsd_lm) |>
         p_addti_overlay(dt = dt, addti = addti) |>
-        p_theme(xstart = xstart, xend = 100, yaxis_log = yaxis_log, title = title, theme = theme) |> 
+        p_theme(xstart = xstart, xend = 100, yaxis_log = yaxis_log, #yrng = yrng, 
+                title = title, theme = theme) |> 
         p_addti_indicator(dt = dt, addti = addti, x = x, theme = theme)
         
     return(e)
@@ -295,20 +308,22 @@ pp_step = function(
     dt, x = 'date', y = 'close', yb = NULL, date_range = 'max', yaxis_log = FALSE, title = NULL, 
     color_up = "#CF002F", color_down = "#000000", theme = 'default', 
     markline = TRUE, nsd_lm = NULL, addti = NULL, 
-    orders = NULL, order_y = 'prices', order_type = 'type', ...
+    orders = NULL, order_y = 'prices', order_type = 'side_bs', ...
 ) {
     dt = pp_dtpre(dt, x, y, addti, markline, orders, order_y, order_type) |>
         pp_dtlm(x, y, yaxis_log, nsd_lm)
-    title  = pp_title(dt, title)
+    title  = pp_title(dt, title, ...)
     xstart = pp_xstart(dt, x, date_range)
-    
+    # yrng = pp_yrng(dt=dt, y=y, yb=yb, ...)
+        
     e = pp_base(dt, x, yb=yb) |> 
         e_step_(serie = y, symbol='none') |> 
         p_orders(orders, color_up, color_down, ...) |> 
         p_markline(dt = dt, markline = markline) |> 
         p_lm(x=x, y=y, nsd_lm=nsd_lm) |>
         p_addti_overlay(dt = dt, addti = addti) |>
-        p_theme(xstart = xstart, xend = 100, yaxis_log = yaxis_log, title = title, theme = theme) |>
+        p_theme(xstart = xstart, xend = 100, yaxis_log = yaxis_log, # yrng = yrng, 
+                title = title, theme = theme) |>
         p_addti_indicator(dt = dt, addti = addti, x = x, theme = theme)
     
     return(e)
@@ -318,12 +333,13 @@ pp_candle = function(
     dt, x = 'date', y = 'close', yb = NULL, date_range = 'max', yaxis_log = FALSE, title = NULL, 
     color_up = "#CF002F", color_down = "#000000", theme = 'default', 
     markline = TRUE, nsd_lm = NULL, addti = NULL, 
-    orders = NULL, order_y = 'prices', order_type = 'type', ...
+    orders = NULL, order_y = 'prices', order_type = 'side_bs', ...
 ) {
     dt = pp_dtpre(dt, x, y, addti, markline, orders, order_y, order_type) |>
         pp_dtlm(x, y, yaxis_log, nsd_lm)
-    title  = pp_title(dt, title)
+    title  = pp_title(dt, title, ...)
     xstart = pp_xstart(dt, x, date_range)
+    # yrng = pp_yrng(dt=dt, y=y, yb=yb, ...)
     
     dt = copy(dt)[, date := as.factor(date)]
     e = pp_base(dt, x, yb=yb) |> 
@@ -334,7 +350,8 @@ pp_candle = function(
         p_markline(dt = dt, markline = markline) |> 
         p_lm(x=x, y=y, nsd_lm=nsd_lm) |>
         p_addti_overlay(dt = dt, addti = addti) |>
-        p_theme(xstart = xstart, xend = 100, yaxis_log = yaxis_log, title = title, theme = theme) |> 
+        p_theme(xstart = xstart, xend = 100, yaxis_log = yaxis_log, # yrng = yrng, 
+                title = title, theme = theme) |> 
         p_addti_indicator(dt = dt, addti = addti, x = x, theme = theme)
     
     return(e)
@@ -356,7 +373,7 @@ pp_candle = function(
 #' @param addti list of technical indicators or numerical columns in dt. For technical indicator, it is calculated via \code{pq_addti}, which including overlays and indicators.
 #' @param nsd_lm number of standard deviation from linear regression fitting values. 
 #' @param markline whether to display markline. Default is TRUE. 
-#' @param orders the data frame of transaction orders, which includes symbol, date (required), prices, volumes (required) and type columns. 
+#' @param orders a data frame of trade orders, which including columns of symbol, date, side, prices, and quantity. 
 #' @param arrange a list. Number of rows and columns charts to connect. Default is NULL.
 #' @param theme name of echarts theme, see details in \code{\link{e_theme}}
 #' @param ... ignored
@@ -387,6 +404,7 @@ pp_candle = function(
 #' 
 #' # multiple series
 #' data(dt_banks)
+#' setDT(dt_banks)
 #' dt_banksadj = md_stock_adjust(dt_banks)
 #' 
 #' # linear trend
@@ -395,9 +413,9 @@ pp_candle = function(
 #' e4[[1]]
 #' 
 #' # orders 
-#' b2 = dt_banks[symbol %in% c('601988.SS', '601398.SS')]
+#' b2 = dt_banks[symbol %in% c('601988.SH', '601398.SH')]
 #' b2orders = b2[sample(.N, 10), .(symbol, date, prices=close, 
-#'               type=sample(c('buy','sell'), 10, replace=TRUE))]
+#'               side=sample(c(-1, 1), 10, replace=TRUE))]
 #'                 
 #' e5 = pq_plot(b2, orders=b2orders)
 #' e5[[1]]
