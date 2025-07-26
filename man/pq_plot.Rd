@@ -6,7 +6,7 @@
 \usage{
 pq_plot(dt, chart_type = "line", x = "date", y = "close", yb = NULL,
   date_range = "max", yaxis_log = FALSE, title = NULL, addti = NULL,
-  nsd_lm = NULL, markline = TRUE, orders = NULL, arrange = list(rows =
+  nsd_lm = NULL, markline = FALSE, orders = NULL, arrange = list(rows =
   NULL, cols = NULL), theme = "default", ...)
 }
 \arguments{
@@ -36,7 +36,7 @@ pq_plot(dt, chart_type = "line", x = "date", y = "close", yb = NULL,
 
 \item{arrange}{a list. Number of rows and columns charts to connect. Default is NULL.}
 
-\item{theme}{name of echarts theme, see details in \code{\link{e_theme}}}
+\item{theme}{name of echarts theme, see details in \code{\link[echarts4r]{e_theme}}}
 
 \item{...}{ignored}
 }
@@ -53,6 +53,9 @@ data(dt_ssec)
 # line chart (default)
 e1 = pq_plot(dt_ssec, chart_type = 'line') # line chart (default)
 e1[[1]]
+
+# show turnover
+eto = pq_plot(dt_ssec, yvol = 'turnover')
 
 # add technical indicators
 e2 = pq_plot(dt_ssec, addti = list(
@@ -79,8 +82,11 @@ e4[[1]]
 
 # orders 
 b2 = dt_banks[symbol \%in\% c('601988.SH', '601398.SH')]
-b2orders = b2[sample(.N, 10), .(symbol, date, prices=close, 
-              side=sample(c(-1, 1), 10, replace=TRUE))]
+b2orders = b2[sample(.N, 20), .(
+    symbol, date, prices=close,
+    side = sample(c(-1,  1), 20, replace=TRUE),
+    term = sample(c(10, 20), 20, replace=TRUE)
+)]
                 
 e5 = pq_plot(b2, orders=b2orders)
 e5[[1]]

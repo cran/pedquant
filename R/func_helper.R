@@ -357,7 +357,28 @@ load_read_csv = function(url, encode="UTF-8", handle=new_handle(), csv_header=TR
     else return(setDT(dat))
 }
 
+load_read_json = function(url) {
+    url = "https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/2007.json"
+    
+    temp = tempfile()
+    on.exit(unlink(temp))
+    
+    download.file(url=url, destfile=temp, quiet=TRUE)
+    dat = read_csv(temp, show_col_types=FALSE)
+    
+    
+}
 
+#' @importFrom jsonlite read_json
+read_api_tsanghi = function(url) {
+    dmp = read_json(url)
+    setDT(rbindlist(lapply(dmp$data, function(x) {
+        as.data.frame(lapply(x, function(x) {
+            if (is.null(x)) x = NA 
+            return(x)
+        }))
+    })))[]
+}
 
 #' @importFrom readr read_lines
 #' @importFrom httr POST add_headers
@@ -404,9 +425,10 @@ read_api_eastmoney = function(url) {
     
     return(datmp)
 }
-read_apidata_eastmoney = function(url, type='history') {
+read_apidata_eastmoney = function(url, type='history', datmp = NULL) {
     doc = NULL
-    datmp = read_api_eastmoney(url)
+    if (is.null(datmp)) datmp = read_api_eastmoney(url)
+    
     if (is.null(datmp$data)) return(invisible())
     
     if (type == 'history') {
@@ -466,7 +488,8 @@ fillna = function(x, from_last = FALSE) {
 
 # loop on get_data1
 #' @importFrom stats rnorm
-load_dat_loop = function(symbol, func, args=list(), print_step, sleep = 0, ...) {
+load_dat_loop = function(symbol, func, args=list(), print_step=0, sleep = 0, ...) {
+    
     runif = dt_list = NULL
     syb_len = length(symbol)
     for (i in 1:syb_len) {
@@ -564,7 +587,8 @@ select_rows_df = function(dt, column=NULL, input_string=NULL, onerow=FALSE) {
 # remove not available data
 rm_error_dat = function(datlst) {
     # remove error symbols
-    error_symbols = names(datlst)[which(sapply(datlst, function(x) inherits(x, 'try-error')))]
+    error_symbols = names(datlst)[which(sapply(datlst, function(x) inherits(x, 'try-error') | any(grepl('Error', x)) ))]
+    
     if (length(error_symbols) > 0) {
         warning(sprintf('The following symbols can\'t imported:\n%s', paste0(error_symbols, collapse=', ')))
         datlst = datlst[setdiff(names(datlst), error_symbols)]

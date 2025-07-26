@@ -22,20 +22,20 @@ main categories,
     indicators, visualization charts and industrial index etc for time
     series data.
 
-The functions in this package are designed to write minimum codes for
-some common tasks in quantitative analysis process. Since the parameters
-to get data can be interactively specify, it’s very easy to start. The
-loaded data have been carefully cleansed and provided in a unified
+The functions in this package are designed to minimize code writing for 
+common tasks in quantitative analysis process. Since the parameters
+to get data can be specified interactively, it is very easy to get started. 
+The loaded data have been carefully cleansed and provided in a unified
 format.
 
-`pedquant` package has advantages on multiple aspects, such as the
+`pedquant` package has advantages in multiple aspects. For example, the
 format of loaded data is a list of data frames, which can be easily
-manipulated in [data.table](https://rdatatable.gitlab.io/data.table) or
-[tidyverse](https://www.tidyverse.org) packages; high performance on
-speed by using [data.table](https://rdatatable.gitlab.io/data.table) and
-[TTR](https://github.com/joshuaulrich/TTR); and interactive charts by
+manipulated using [data.table](https://rdatatable.gitlab.io/data.table) or
+[tidyverse](https://www.tidyverse.org) packages; it offers high performance 
+in terms of speed by using [data.table](https://rdatatable.gitlab.io/data.table) and
+[TTR](https://github.com/joshuaulrich/TTR); and it generates interactive charts
 using [echarts4r](https://echarts4r.john-coene.com). Similar works
-including [tidyquant](https://github.com/business-science/tidyquant) or
+include [tidyquant](https://github.com/business-science/tidyquant) and
 [quantmod](https://github.com/joshuaulrich/quantmod).
 
 ## Installation
